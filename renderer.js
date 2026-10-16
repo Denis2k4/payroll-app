@@ -1546,70 +1546,126 @@ capNhatNutCuonTrang();
   const progressFill = document.getElementById("updateProgressFill");
   const btnInstall = document.getElementById("btnCaiDatCapNhat");
   const btnDismiss = document.getElementById("btnDismissUpdate");
+  const btnCheckUpdate = document.getElementById("btnKiemTraCapNhat");
+  const textCheckUpdate = document.getElementById("textCheckUpdate");
 
-  if (!banner || !window.api?.onCapNhatTrangThai) return;
+  if (!banner) return;
 
   let autoHideTimer = null;
+  let isManualCheck = false;
 
-  const STATUS_ICONS = {
-    checking: "🔄",
-    available: "⬇️",
-    downloading: "⬇️",
-    ready: "✅",
-    "up-to-date": "✅",
-    error: "⚠️",
-  };
+  function hideBanner() {
+    clearTimeout(autoHideTimer);
+    banner.hidden = true;
+    banner.style.display = "none";
+  }
 
   function showBanner(status) {
     clearTimeout(autoHideTimer);
     banner.hidden = false;
+    banner.style.display = "flex";
     banner.setAttribute("data-status", status);
   }
 
-  function hideBanner(delayMs) {
-    if (delayMs) {
-      autoHideTimer = setTimeout(() => { banner.hidden = true; }, delayMs);
-    } else {
-      banner.hidden = true;
-    }
-  }
+  // Khởi đầu luôn ẩn banner
+  hideBanner();
 
-  window.api.onCapNhatTrangThai((data) => {
-    const { status } = data;
-
-    icon.textContent = STATUS_ICONS[status] || "🔄";
-    message.textContent = data.message || "";
-
-    // Progress bar chỉ hiện khi đang tải
-    if (status === "downloading") {
-      progressWrap.hidden = false;
-      progressFill.style.width = (data.percent || 0) + "%";
-    } else {
-      progressWrap.hidden = true;
-      progressFill.style.width = "0%";
-    }
-
-    // Nút cài đặt chỉ hiện khi đã tải xong
-    btnInstall.hidden = status !== "ready";
-
-    // Hiện banner
-    showBanner(status);
-
-    // Tự ẩn nếu không cần action từ user
-    if (status === "up-to-date") {
-      hideBanner(4000);
-    } else if (status === "error") {
-      hideBanner(6000);
-    }
+  // Nút X tắt thông báo cập nhật
+  btnDismiss?.addEventListener("click", () => {
+    hideBanner();
   });
 
-  btnInstall.addEventListener("click", () => {
+  // Nút cài đặt & khởi động lại
+  btnInstall?.addEventListener("click", () => {
     btnInstall.disabled = true;
     btnInstall.textContent = "Đang cài đặt…";
-    window.api.caiDatCapNhat();
+    hideBanner();
+    if (window.api?.caiDatCapNhat) {
+      window.api.caiDatCapNhat();
+    }
   });
 
-  btnDismiss.addEventListener("click", () => {
-    banner.hidden = true;
-  });
+  // Lắng nghe trạng thái cập nhật từ main process
+  if (window.api?.onCapNhatTrangThai) {
+    window.api.onCapNhatTrangThai((data) => {
+      const { status } = data;
+
+      // CHỈ hiển thị banner khi có bản cập nhật mới (available, downloading, ready)
+      if (status === "available") {
+        icon.textContent = "✨";
+        message.textContent = `Phát hiện phiên bản mới (${data.version || ""}). Đang tự động tải về…`;
+        if (progressWrap) progressWrap.hidden = true;
+        if (btnInstall) btnInstall.hidden = true;
+        showBanner(status);
+      } else if (status === "downloading") {
+        icon.textContent = "⬇️";
+        message.textContent = `Đang tải bản cập nhật: ${data.percent || 0}%`;
+        if (progressWrap) {
+          progressWrap.hidden = false;
+          progressWrap.style.display = "block";
+        }
+        if (progressFill) progressFill.style.width = (data.percent || 0) + "%";
+        if (btnInstall) btnInstall.hidden = true;
+        showBanner(status);
+      } else if (status === "ready") {
+        icon.textContent = "🎉";
+        message.textContent = `Phiên bản mới (${data.version || ""}) đã sẵn sàng!`;
+        if (progressWrap) {
+          progressWrap.hidden = true;
+          progressWrap.style.display = "none";
+        }
+        if (btnInstall) {
+          btnInstall.hidden = false;
+          btnInstall.style.display = "inline-block";
+          btnInstall.disabled = false;
+          btnInstall.textContent = "Cài đặt & Khởi động lại";
+        }
+        showBanner(status);
+      } else if (status === "up-to-date") {
+        // Tự động ẩn banner
+        hideBanner();
+        if (isManualCheck) {
+          showToast("Bạn đang sử dụng phiên bản mới nhất!", "success", 3000);
+        }
+      } else if (status === "error") {
+        // Lỗi kiểm tra: ẩn banner để không chiếm diện tích
+        hideBanner();
+        console.warn("AutoUpdater status:", data.message);
+        if (isManualCheck) {
+          showToast("Không thể kết nối máy chủ kiểm tra cập nhật.", "warning", 3500);
+        }
+      } else if (status === "checking") {
+        // Khi checking ngầm lúc mở app: giữ banner ẩn hoàn toàn
+        hideBanner();
+      }
+    });
+  }
+
+  // Nút kiểm tra cập nhật thủ công cạnh link tải file mẫu
+  if (btnCheckUpdate) {
+    btnCheckUpdate.addEventListener("click", async () => {
+      if (btnCheckUpdate.classList.contains("checking")) return;
+      isManualCheck = true;
+      btnCheckUpdate.classList.add("checking");
+      if (textCheckUpdate) textCheckUpdate.textContent = "Đang kiểm tra…";
+
+      try {
+        if (window.api?.kiemTraCapNhat) {
+          const res = await window.api.kiemTraCapNhat();
+          if (res && res.ok === false) {
+            console.warn("Lỗi kiểm tra cập nhật:", res.error);
+            showToast("Chưa thể kiểm tra cập nhật lúc này.", "warning", 3000);
+          }
+        }
+      } catch (err) {
+        console.warn("Lỗi kiểm tra cập nhật:", err);
+      } finally {
+        setTimeout(() => {
+          btnCheckUpdate.classList.remove("checking");
+          if (textCheckUpdate) textCheckUpdate.textContent = "Kiểm tra cập nhật";
+          isManualCheck = false;
+        }, 2000);
+      }
+    });
+  }
 })();

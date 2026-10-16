@@ -39,26 +39,30 @@
           <div class="note-body">
             Sự cố/Góp ý liên hệ:
             <strong>Dũng IT</strong> (<span style="font-weight:700">0327 599 761</span>)
-            <div style="margin-top:8px;border-top:1px dashed rgba(16,185,129,0.3);padding-top:8px">
+            <div style="margin-top:8px;border-top:1px dashed rgba(16,185,129,0.3);padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
               <a href="#" id="linkTaiFileMau" class="sample-link">📄 Tải file Excel cấu trúc mẫu</a>
+              <button type="button" id="btnKiemTraCapNhat" class="btn-check-update" title="Kiểm tra phiên bản mới">
+                <span id="iconCheckUpdate" class="btn-check-icon">🔄</span>
+                <span id="textCheckUpdate">Kiểm tra cập nhật</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- BANNER CẬP NHẬT TỰ ĐỘNG -->
-      <div class="update-banner" id="updateBanner" hidden>
+      <!-- BANNER CẬP NHẬT TỰ ĐỘNG (chỉ hiện khi có bản cập nhật mới) -->
+      <div class="update-banner" id="updateBanner" hidden style="display:none">
         <div class="update-banner-content">
-          <span class="update-icon" id="updateIcon">🔄</span>
-          <span class="update-message" id="updateMessage">Đang kiểm tra cập nhật…</span>
-          <div class="update-progress-mini" id="updateProgressWrap" hidden>
+          <span class="update-icon" id="updateIcon">✨</span>
+          <span class="update-message" id="updateMessage">Đã có phiên bản mới!</span>
+          <div class="update-progress-mini" id="updateProgressWrap" hidden style="display:none">
             <div class="update-progress-track">
               <div class="update-progress-fill" id="updateProgressFill"></div>
             </div>
           </div>
         </div>
         <div class="update-banner-actions">
-          <button type="button" class="update-btn" id="btnCaiDatCapNhat" hidden>Cài đặt & Khởi động lại</button>
+          <button type="button" class="update-btn" id="btnCaiDatCapNhat" hidden style="display:none">Cài đặt & Khởi động lại</button>
           <button type="button" class="update-btn-dismiss" id="btnDismissUpdate" title="Đóng">✕</button>
         </div>
       </div>

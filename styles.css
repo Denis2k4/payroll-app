@@ -1050,6 +1050,48 @@ tr.has-warning td { background: rgba(245,158,11,0.08) !important; }
   animation: updateSlideIn 0.35s ease-out;
 }
 
+.update-banner[hidden] {
+  display: none !important;
+}
+
+.btn-check-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.btn-check-update:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.55);
+  color: #047857;
+  transform: translateY(-1px);
+}
+
+.btn-check-update:active {
+  transform: translateY(0);
+}
+
+.btn-check-update.checking {
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.btn-check-update.checking .btn-check-icon {
+  display: inline-block;
+  animation: updateSpin 1s linear infinite;
+}
+
 @keyframes updateSlideIn {
   from { opacity: 0; transform: translateY(-12px); }
   to   { opacity: 1; transform: translateY(0); }
