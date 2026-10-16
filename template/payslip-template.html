@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phiếu lương</title>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-2: #2c4d8a;
+      --primary-light: #f0f9ff;
+
+      --accent: #64748b;
+
+      --bg: #ffffff;
+      --soft: #f6f8fb;
+      --zebra: #f0f9ff;
+
+      --line: #dbe4f0;
+
+      --text: #111827;
+      --muted: #6b7280;
+    }
+
+    @page {
+      size: A4;
+      margin: 0.6cm 0.9cm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+    }
+
+    body {
+
+      font-family: "Times New Roman", serif;
+
+      font-size: 9pt;
+
+      line-height: 1.25;
+
+      color: var(--text);
+
+      margin: 0;
+      padding: 0;
+
+      background: white;
+
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+
+    }
+
+    .info-table,
+    .attendance-table {
+      line-height: 1.35;
+    }
+
+    .compact {
+      line-height: 1.4;
+    }
+
+    /* ==================================================== */
+
+    .header {
+
+      position: relative;
+
+      text-align: left;
+
+      margin-bottom: 1px;
+
+      padding-bottom: 1px;
+
+      border-bottom: 1px solid var(--line);
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+    }
+
+    .meta-top {
+
+      position: static;
+
+      font-size: 7.5px;
+
+      color: var(--muted);
+
+      line-height: 1.3;
+
+      white-space: nowrap;
+
+      display: grid;
+
+      grid-template-columns: auto auto;
+
+      column-gap: 4px;
+
+    }
+
+    .meta-label {
+
+      text-align: right;
+
+      font-weight: bold;
+
+    }
+
+    .meta-value {
+
+      text-align: left;
+
+    }
+
+    .header-center {
+
+      display: flex;
+
+      flex-direction: column;
+
+      align-items: center;
+
+    }
+
+    .logo {
+
+      height: 18px;
+
+      object-fit: contain;
+
+    }
+
+    .company {
+
+      margin-top: 1px;
+
+      font-size: 11px;
+
+      font-weight: bold;
+
+      text-transform: uppercase;
+
+      color: var(--primary);
+
+      letter-spacing: .3px;
+
+    }
+
+    /* ==================================================== */
+
+    .title {
+
+      text-align: center;
+
+      margin: 1px 0 2px;
+
+    }
+
+    .title h2 {
+
+      margin: 0;
+
+      color: var(--primary);
+
+      font-size: 13px;
+
+      letter-spacing: .6px;
+
+      text-transform: uppercase;
+
+    }
+
+    .accent-bar {
+
+      width: 70px;
+
+      height: 3px;
+
+      margin: 5px auto 0;
+
+      background: var(--accent);
+
+      border-radius: 2px;
+
+    }
+
+    /* ==================================================== */
+
+    .info-table,
+    .attendance-table {
+
+      width: 100%;
+
+      border-collapse: separate;
+
+      border-spacing: 0;
+
+      margin-bottom: 4px;
+
+      border: 1px solid var(--line);
+
+      border-radius: 5px;
+
+      overflow: hidden;
+
+      table-layout: fixed;
+
+    }
+
+    .info-table th,
+    .info-table td,
+    .attendance-table th,
+    .attendance-table td {
+
+      border: 1px solid var(--line);
+
+      padding: 3px 5px;
+
+      vertical-align: middle;
+
+    }
+
+    .info-table th {
+
+      width: 16%;
+
+      background: var(--primary-light);
+
+      color: var(--primary);
+
+      font-weight: bold;
+
+      text-align: center;
+
+    }
+
+    .info-table td {
+
+      font-weight: 600;
+
+      text-align: center;
+
+      color: var(--text);
+
+    }
+
+    /* ==================================================== */
+
+    .attendance-table th {
+
+      background: var(--primary-light);
+
+      color: var(--primary);
+
+      font-weight: bold;
+
+      text-align: center;
+
+    }
+
+    .attendance-table td {
+
+      text-align: center;
+
+      font-weight: 600;
+
+      color: var(--text);
+
+    }
+
+    /* Dòng 1-3 thuộc nhóm "Công thử việc" (tiêu đề gộp + nhãn AL/CLPH/RR + giá trị),
+       dòng 4-5 thuộc nhóm "Công chính thức". Đặt chiều cao dòng theo tỉ lệ 2:3
+       để tổng chiều cao 2 nhóm bằng nhau, giúp 2 ô nhãn cao bằng nhau. */
+    .attendance-table tr:nth-child(1),
+    .attendance-table tr:nth-child(2),
+    .attendance-table tr:nth-child(3) {
+
+      height: 14px;
+
+    }
+
+    .attendance-table tr:nth-child(4),
+    .attendance-table tr:nth-child(5) {
+
+      height: 21px;
+
+    }
+
+    .attendance-table .total-cong {
+
+      font-size: 12px;
+
+    }
+
+    .attendance-table th.total-cong {
+
+      font-weight: bold;
+
+    }
+
+    .attendance-table td.total-cong {
+
+      font-weight: bold;
+
+      color: var(--primary);
+
+    }
+
+    .label-col {
+      background: #ffffff;
+      color: var(--primary) !important;
+      font-weight: 700;
+    }
+
+    /* ==================================================== */
+
+    .section {
+
+      margin-top: 1px;
+
+    }
+
+    .section-title {
+
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+
+      color: white;
+
+      padding: 2px 8px;
+
+      font-size: 9px;
+
+      font-weight: bold;
+
+      text-transform: uppercase;
+
+      border-radius: 5px 5px 0 0;
+
+      letter-spacing: .3px;
+
+    }
+
+    .compact {
+
+      width: 100%;
+
+      border-collapse: collapse;
+
+      border: 1px solid var(--line);
+
+      border-top: none;
+
+    }
+
+    .compact th,
+    .compact td {
+
+      border: 1px solid var(--line);
+
+      padding: 3px 5px;
+
+    }
+
+    .compact th {
+
+      background: var(--primary-light);
+
+      color: var(--primary);
+
+      font-weight: bold;
+
+      text-align: center;
+
+    }
+
+    .compact td {
+      color: var(--text);
+    }
+
+    .compact tr:nth-child(even):not(.group-row):not(.total-row):not(.net-row) td {
+
+      background: var(--zebra);
+
+    }
+
+    /* ==================================================== */
+
+    .group-row td {
+
+      background: var(--primary-light);
+
+      color: var(--primary);
+
+      font-weight: bold;
+
+      text-transform: uppercase;
+
+    }
+
+    .total-row td {
+
+      background: #e8f0fb;
+
+      font-weight: bold;
+
+      color: var(--text);
+
+    }
+
+    .net-row td {
+
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+
+      color: white;
+
+      font-weight: bold;
+
+      font-size: 10px;
+
+    }
+
+    .amount {
+
+      text-align: right;
+
+      font-variant-numeric: tabular-nums;
+
+      white-space: nowrap;
+
+      padding-right: 10px !important;
+
+      font-weight: 600;
+
+    }
+
+    /* ==================================================== */
+
+    .note-row {
+
+      margin-top: 2px;
+
+      padding: 2px 6px;
+
+      background: #f4f7fb;
+
+      border-left: 3px solid var(--accent);
+
+      border-radius: 0 4px 4px 0;
+
+      font-size: 7.5px;
+
+    }
+
+    .note-label {
+
+      color: var(--accent);
+
+      font-weight: bold;
+
+    }
+
+    /* ==================================================== */
+
+    .notes {
+
+      margin-top: 1px;
+
+      background: var(--soft);
+
+      border-left: 3px solid var(--primary);
+
+      padding: 1.5px 6px;
+
+      font-size: 7px;
+
+      line-height: 1.1;
+
+      color: var(--muted);
+
+    }
+
+    .notes p {
+
+      margin: 0 0 2px;
+
+    }
+
+    .notes .thanks {
+
+      margin-top: 2px;
+
+      font-weight: bold;
+
+      color: var(--primary);
+
+    }
+
+    /* ==================================================== */
+
+    table {
+
+      page-break-inside: avoid;
+
+    }
+
+    tr {
+
+      page-break-inside: avoid;
+
+    }
+
+    .header,
+    .title,
+    .section {
+
+      page-break-inside: avoid;
+
+    }
+
+    .small {
+
+      font-size: 9px;
+
+    }
+
+    .num {
+
+      text-align: right;
+
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sheet">
+
+    <!-- ================= HEADER ================= -->
+
+    <div class="header">
+
+      <div class="meta-top">
+        <span class="meta-label">Ngày xuất:</span><span class="meta-value">{{ngayXuat}}</span>
+        <span class="meta-label">Mã phiếu:</span><span class="meta-value">{{soPhieuLuong}}</span>
+      </div>
+
+      <div class="header-center">
+
+        <img class="logo" src="{{logoSrc}}" alt="Logo">
+
+        <div class="company">
+          {{tenCongTy}}
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ================= TITLE ================= -->
+
+    <div class="title">
+
+      <h2>
+        PHIẾU LƯƠNG THÁNG {{thangNam}}
+      </h2>
+
+    </div>
+
+    <!-- ================= THÔNG TIN NHÂN VIÊN ================= -->
+
+    <table class="info-table">
+
+      <colgroup>
+
+        <col style="width:16%">
+        <col style="width:34%">
+        <col style="width:16%">
+        <col style="width:34%">
+
+      </colgroup>
+
+      <tr>
+
+        <th>Họ và tên</th>
+
+        <td>{{hoTen}}</td>
+
+        <th>Mã nhân viên</th>
+
+        <td>{{maNhanVien}}</td>
+
+      </tr>
+
+      <tr>
+
+        <th>Khối</th>
+
+        <td>{{khoi}}</td>
+
+        <th>Bộ phận</th>
+
+        <td>{{boPhan}}</td>
+
+      </tr>
+
+      <tr>
+
+        <th>Cơ sở</th>
+
+        <td>{{coSo}}</td>
+
+        <th>Chức vụ</th>
+
+        <td>{{chucVu}}</td>
+
+      </tr>
+
+      <tr>
+
+        <th>Lương chính thức</th>
+
+        <td>{{luongChinhThuc}}</td>
+
+        <th>Lương thử việc</th>
+
+        <td>{{luongThuViec}}</td>
+
+      </tr>
+
+    </table>
+
+    <!-- ================= CHẤM CÔNG ================= -->
+
+    <table class="attendance-table">
+
+      <colgroup>
+
+        <col style="width:9%">
+        <col style="width:11%">
+        <col style="width:8%">
+        <col style="width:11%">
+        <col style="width:8%">
+        <col style="width:8%">
+        <col style="width:8%">
+        <col style="width:8%">
+        <col style="width:8%">
+        <col style="width:11%">
+        <col style="width:10%">
+
+      </colgroup>
+
+      <tr>
+
+        <th class="label-col" rowspan="5">
+          CHẤM CÔNG
+        </th>
+
+        <th rowspan="5">
+          Công tiêu chuẩn
+        </th>
+
+        <td rowspan="5">
+          {{congChuan}}
+        </td>
+
+        <th rowspan="3">
+          Công thử việc
+        </th>
+
+        <td rowspan="3">
+          {{congThuViec}}
+        </td>
+
+        <th colspan="4">Sử dụng trong tháng</th>
+
+        <th class="total-cong" rowspan="5">
+          Tổng công
+        </th>
+
+        <td class="total-cong" rowspan="5">
+          {{tongCong}}
+        </td>
+
+      </tr>
+
+      <tr>
+
+        <th>AL<br>(ngày)</th>
+
+        <th>CLPH<br>(ngày)</th>
+
+        <th>RR<br>(giờ)</th>
+
+        <th>PH<br>(ngày)</th>
+
+      </tr>
+
+      <tr>
+
+        <td>{{congAl}}</td>
+
+        <td>{{congClph}}</td>
+
+        <td>{{congRr}}</td>
+
+        <td>{{congPh}}</td>
+
+      </tr>
+
+      <tr>
+
+        <th rowspan="2">
+          Công chính thức
+        </th>
+
+        <td rowspan="2">
+          {{congChinhThuc}}
+        </td>
+
+        <th colspan="4">
+          Ngày công đi làm thực tế
+        </th>
+
+      </tr>
+
+      <tr>
+
+        <td colspan="4">{{ngayCongThucTe}}</td>
+
+      </tr>
+
+    </table>
+  </div>
+
+  <!-- ================= BẢNG LƯƠNG ================= -->
+
+  <div class="section">
+
+    <div class="section-title">
+      BẢNG LƯƠNG
+    </div>
+
+    <table class="compact">
+
+      <colgroup>
+        <col style="width:70%">
+        <col style="width:30%">
+      </colgroup>
+
+      <thead>
+
+        <tr>
+
+          <th>Khoản mục</th>
+
+          <th>Số tiền (VNĐ)</th>
+
+        </tr>
+
+      </thead>
+
+      <tbody>
+
+        <tr class="group-row">
+
+          <td colspan="2">
+            A. CÁC KHOẢN ĐƯỢC NHẬN
+          </td>
+
+        </tr>
+
+        {{bangKhoanNhan}}
+
+        <tr class="total-row">
+
+          <td>
+            <strong>TỔNG THU NHẬP (A)</strong>
+          </td>
+
+          <td class="amount">
+            <strong>{{tongThuNhap}}</strong>
+          </td>
+
+        </tr>
+
+        <tr class="group-row">
+
+          <td colspan="2">
+            B. CÁC KHOẢN KHẤU TRỪ
+          </td>
+
+        </tr>
+
+        {{bangKhoanKhauTru}}
+
+        <tr class="total-row">
+
+          <td>
+            <strong>TỔNG KHẤU TRỪ (B)</strong>
+          </td>
+
+          <td class="amount">
+            <strong>{{tongKhauTru}}</strong>
+          </td>
+
+        </tr>
+
+        {{khoanKhacRow}}
+
+        <tr class="net-row">
+
+          <td>
+            TỔNG THU NHẬP THỰC NHẬN (A − B)
+          </td>
+
+          <td class="amount">
+            {{thucNhan}}
+          </td>
+
+        </tr>
+
+      </tbody>
+
+    </table>
+
+    {{ghiChuBlock}}
+
+  </div>
+
+  <!-- ================= THÔNG BÁO ================= -->
+
+  <div class="notes">
+
+    <p>
+
+      <strong>Bảo mật thông tin:</strong>
+      Phiếu lương là tài liệu nội bộ của Công ty.
+      CBNV vui lòng không chia sẻ hoặc phát tán thông tin về mức lương,
+      thu nhập và các khoản thanh toán cho bên thứ ba khi chưa được phép.
+
+    </p>
+
+    <p class="thanks">
+
+      Trân trọng cảm ơn Quý Anh/Chị đã đồng hành cùng
+      <strong>{{tenCongTy}}</strong>.
+
+    </p>
+
+  </div>
+
+  </div>
+
+</body>
+
+</html>

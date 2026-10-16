@@ -1,0 +1,3 @@
+0000000000000000000000000000000000000000 1a0d88756015645c229f8c215605f2998c4e9a77 zug <164471743+Zugpro2k4@users.noreply.github.com> 1792121420 +0700	commit (initial): first commit
+1a0d88756015645c229f8c215605f2998c4e9a77 1a0d88756015645c229f8c215605f2998c4e9a77 zug <164471743+Zugpro2k4@users.noreply.github.com> 1792121493 +0700	Branch: renamed refs/heads/master to refs/heads/main
+1a0d88756015645c229f8c215605f2998c4e9a77 62301d90793eb6d7d4dc3f0ba73be5d143a8ff33 zug <164471743+Zugpro2k4@users.noreply.github.com> 1792122045 +0700	commit: Exclude dependencies and build files
