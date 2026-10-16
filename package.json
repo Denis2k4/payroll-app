@@ -1,6 +1,6 @@
 {
   "name": "HeheHR",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "App desktop xuất phiếu lương nhân viên từ file Excel",
   "main": "main.js",
   "scripts": {
