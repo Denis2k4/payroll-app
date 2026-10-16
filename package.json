@@ -26,7 +26,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "YOUR_GITHUB_USERNAME",
+        "owner": "Denis2k4",
         "repo": "payroll-app"
       }
     ],
