@@ -19,10 +19,16 @@ const MAX_LOGO_SIZE_BYTES = 4 * 1024 * 1024; // 4MB
 const moneyFormatter = new Intl.NumberFormat("vi-VN");
 
 let nodemailer;
+let portalUploaderModule;
 
 function getNodemailer() {
   if (!nodemailer) nodemailer = require("nodemailer");
   return nodemailer;
+}
+
+function getPortalUploader() {
+  if (!portalUploaderModule) portalUploaderModule = require("./lib/portalUploader");
+  return portalUploaderModule;
 }
 
 // File lưu cấu hình "ghi nhớ" (Tên công ty, Logo, Tiêu đề/Nội dung email,
@@ -410,19 +416,8 @@ async function openPdfInDefaultBrowser(pdfBuffer, employee) {
   await shell.openExternal(`http://127.0.0.1:${port}/preview/${token}.pdf`);
 }
 
-// ---------- Chọn file Excel & đọc dữ liệu ----------
-ipcMain.handle("chon-file-excel", async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: "Chọn file Excel danh sách nhân viên",
-    filters: [{ name: "Excel", extensions: ["xlsx", "xls"] }],
-    properties: ["openFile"],
-  });
-
-  if (result.canceled || result.filePaths.length === 0) return null;
-
-  const filePath = result.filePaths[0];
-
-  // ---------- 1a. Kiểm tra định dạng file ----------
+// ---------- Hàm đọc và xử lý file Excel chung ----------
+async function docFileExcelTuPath(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (!EXCEL_EXTENSIONS.has(ext)) {
     return {
@@ -451,6 +446,26 @@ ipcMain.handle("chon-file-excel", async () => {
     validation: processed.validation,
     formatWarning: processed.formatWarning,
   };
+}
+
+// ---------- Chọn file Excel & đọc dữ liệu ----------
+ipcMain.handle("chon-file-excel", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Chọn file Excel danh sách nhân viên",
+    filters: [{ name: "Excel", extensions: ["xlsx", "xls"] }],
+    properties: ["openFile"],
+  });
+
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return await docFileExcelTuPath(result.filePaths[0]);
+});
+
+// ---------- Đọc file Excel từ đường dẫn trực tiếp (Drag & drop) ----------
+ipcMain.handle("doc-file-excel-path", async (event, filePath) => {
+  if (!filePath || typeof filePath !== "string") {
+    return { error: "Đường dẫn file không hợp lệ." };
+  }
+  return await docFileExcelTuPath(filePath);
 });
 
 // ---------- Tải file Excel mẫu về máy ----------
@@ -638,6 +653,10 @@ ipcMain.handle("luu-cau-hinh", async (event, cauHinh) => {
       logoFileName: customLogoFileName || "",
       matKhauMaHoa: null,
       matKhauKhaDung: false,
+      // Portal Supabase config
+      portalSupabaseUrl: cauHinh?.portalSupabaseUrl || "",
+      portalServiceRoleKeyMaHoa: null,
+      portalServiceRoleKeyKhaDung: false,
     };
 
     const matKhau = cauHinh?.emailMatKhauUngDung || "";
@@ -649,6 +668,17 @@ ipcMain.handle("luu-cau-hinh", async (event, cauHinh) => {
         data.matKhauKhaDung = true;
       }
       // Nếu máy không hỗ trợ mã hoá, cố tình BỎ QUA không lưu mật khẩu.
+    }
+
+    // Mã hoá Service Role Key của portal (cũng là secret)
+    const portalKey = cauHinh?.portalServiceRoleKey || "";
+    if (portalKey) {
+      if (safeStorage.isEncryptionAvailable()) {
+        data.portalServiceRoleKeyMaHoa = safeStorage
+          .encryptString(portalKey)
+          .toString("base64");
+        data.portalServiceRoleKeyKhaDung = true;
+      }
     }
 
     const serialized = JSON.stringify(data, null, 2);
@@ -704,6 +734,15 @@ ipcMain.handle("tai-cau-hinh", async () => {
       emailMatKhauUngDung: matKhauUngDung,
       logoDataUri: data.logoDataUri || "",
       logoFileName: data.logoFileName || "",
+      portalSupabaseUrl: data.portalSupabaseUrl || "",
+      portalServiceRoleKey: (() => {
+        if (data.portalServiceRoleKeyMaHoa && safeStorage.isEncryptionAvailable()) {
+          try {
+            return safeStorage.decryptString(Buffer.from(data.portalServiceRoleKeyMaHoa, "base64"));
+          } catch { return ""; }
+        }
+        return "";
+      })(),
     };
   } catch (err) {
     return { error: err.message || String(err) };
@@ -978,6 +1017,200 @@ ipcMain.handle(
     }
   },
 );
+
+// ============================================================
+// UPLOAD LÊN PORTAL (Supabase)
+// ============================================================
+let activePortalJob = false;
+
+ipcMain.handle(
+  "upload-to-portal",
+  async (event, { supabaseUrl, serviceRoleKey, selectedIndexes, tenCongTy, thangNam, danhSachNhanVien }) => {
+    if (activePortalJob) {
+      return {
+        ok: false,
+        busy: true,
+        message: "Một tác vụ upload Portal khác đang chạy. Vui lòng đợi.",
+      };
+    }
+    activePortalJob = true;
+
+    const { uploadToPortal } = getPortalUploader();
+
+    // Xác định danh sách indexes cần upload
+    const indexes = Array.isArray(selectedIndexes) && selectedIndexes.length
+      ? selectedIndexes
+      : danhSachNhanVien.map((_, i) => i);
+
+    const danhSach = indexes.map((i) => danhSachNhanVien[i]).filter(Boolean);
+    const total = danhSach.length;
+
+    let pdfWindow = null;
+
+    try {
+      // Tạo danh sách employees kèm pdfBuffer
+      const employeesWithPdf = [];
+
+      for (let idx = 0; idx < danhSach.length; idx++) {
+        const nv = danhSach[idx];
+        const maNV = nv.maNhanVien || nv.maNV || "";
+
+        // Phát tiến độ tạo PDF
+        if (!event.sender.isDestroyed()) {
+          event.sender.send("upload-portal-tien-do", {
+            daXong: idx,
+            tongSo: total,
+            maNV,
+            trangThai: "uploading",
+          });
+        }
+
+        try {
+          if (!pdfWindow || pdfWindow.isDestroyed()) {
+            pdfWindow = createPdfWindow();
+          }
+          const pdfBuffer = await generatePdfBuffer(nv, tenCongTy, thangNam, pdfWindow);
+          employeesWithPdf.push({
+            maNV,
+            hoTen: nv.hoTen || "",
+            boPhan: nv.boPhan || "",
+            khoi: nv.khoi || "",
+            coSo: nv.coSo || "",
+            pdfBuffer,
+            thangNam,
+            tenCongTy,
+          });
+        } catch (err) {
+          employeesWithPdf.push({
+            maNV,
+            hoTen: nv.hoTen || "",
+            boPhan: nv.boPhan || "",
+            khoi: nv.khoi || "",
+            coSo: nv.coSo || "",
+            pdfBuffer: null,
+            thangNam,
+            tenCongTy,
+            _pdfError: err.message || String(err),
+          });
+        }
+      }
+
+      destroyWindow(pdfWindow);
+      pdfWindow = null;
+
+      // Filter out those with PDF errors up-front and mark them as errors
+      const toUpload = [];
+      const preResults = [];
+      for (const emp of employeesWithPdf) {
+        if (emp._pdfError) {
+          preResults.push({ maNV: emp.maNV, success: false, error: `Tạo PDF thất bại: ${emp._pdfError}` });
+        } else {
+          toUpload.push(emp);
+        }
+      }
+
+      let uploadIdx = 0;
+      const results = await uploadToPortal({
+        supabaseUrl,
+        serviceRoleKey,
+        employees: toUpload,
+        onProgress(current, tot, maNV, trangThai) {
+          if (!event.sender.isDestroyed()) {
+            event.sender.send("upload-portal-tien-do", {
+              daXong: current,
+              tongSo: total,
+              maNV,
+              trangThai,
+            });
+          }
+        },
+      });
+
+      return { ok: true, results: [...preResults, ...results] };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    } finally {
+      destroyWindow(pdfWindow);
+      activePortalJob = false;
+    }
+  },
+);
+
+// ============================================================
+// QUẢN LÝ PHIẾU LƯƠNG TRÊN PORTAL (SUPABASE)
+// ============================================================
+ipcMain.handle(
+  "portal-fetch-payslips",
+  async (event, { supabaseUrl, serviceRoleKey, thangNam }) => {
+    try {
+      const { fetchPayslips } = getPortalUploader();
+      const data = await fetchPayslips({ supabaseUrl, serviceRoleKey, thangNam });
+      return { ok: true, data };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-revoke-payslips",
+  async (event, { supabaseUrl, serviceRoleKey, ids }) => {
+    try {
+      const { revokePayslips } = getPortalUploader();
+      const result = await revokePayslips({ supabaseUrl, serviceRoleKey, ids });
+      return { ok: true, count: result.count };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-restore-payslips",
+  async (event, { supabaseUrl, serviceRoleKey, ids }) => {
+    try {
+      const { restorePayslips } = getPortalUploader();
+      const result = await restorePayslips({ supabaseUrl, serviceRoleKey, ids });
+      return { ok: true, count: result.count };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-delete-payslips",
+  async (event, { supabaseUrl, serviceRoleKey, items }) => {
+    try {
+      const { deletePayslips } = getPortalUploader();
+      const result = await deletePayslips({ supabaseUrl, serviceRoleKey, items });
+      return { ok: true, count: result.count };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-get-signed-url",
+  async (event, { supabaseUrl, serviceRoleKey, pdfPath }) => {
+    try {
+      const { createSignedUrl } = getPortalUploader();
+      const result = await createSignedUrl({ supabaseUrl, serviceRoleKey, pdfPath });
+      return { ok: true, signedUrl: result.signedUrl };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle("mo-link-ngoai", async (event, url) => {
+  if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+    await shell.openExternal(url);
+    return true;
+  }
+  return false;
+});
 
 // ============================================================
 // AUTO-UPDATER (electron-updater)

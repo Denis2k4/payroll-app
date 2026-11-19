@@ -18,6 +18,7 @@ let previewPage = 1;
 const PREVIEW_PAGE_SIZE = 50;
 let pdfJobInFlight = false;
 let emailJobInFlight = false;
+let portalJobInFlight = false;
 let pendingConfirm = false;
 
 // ===========================================================
@@ -126,10 +127,12 @@ function showConfirmModal({
     confirmBtn.textContent = confirmLabel;
     cancelBtn.textContent = cancelLabel;
     overlay.hidden = false;
+    overlay.style.display = "flex";
 
     const cleanup = (result) => {
       pendingConfirm = false;
       overlay.hidden = true;
+      overlay.style.display = "none";
       confirmBtn.removeEventListener("click", onConfirm);
       cancelBtn.removeEventListener("click", onCancel);
       overlay.removeEventListener("click", onOverlayClick);
@@ -227,15 +230,29 @@ function getPreviewValue(nv, column, sttHienThi) {
 }
 
 // ============================================================
-// BƯỚC 1 - ĐỌC FILE EXCEL
+// BƯỚC 1 - ĐỌC FILE EXCEL & NẠP DỮ LIỆU
 // ============================================================
-$("btnChonExcel").addEventListener("click", async () => {
+async function xuLyDocFileExcel(filePath = null) {
+  const thangNamInput = $("thangNam");
+  const thangNamVal = thangNamInput?.value?.trim();
+  if (!thangNamVal) {
+    showToast("⚠ Vui lòng nhập Tháng lương trước khi nạp file Excel!", "warning");
+    thangNamInput?.focus();
+    thangNamInput?.classList.add("input-error");
+    return;
+  }
+  thangNamInput?.classList.remove("input-error");
+
   $("btnChonExcel").disabled = true;
   $("trangThai").textContent = "Đang đọc file Excel...";
 
   let ketQua;
   try {
-    ketQua = await window.api.chonFileExcel();
+    if (filePath) {
+      ketQua = await window.api.docFileExcelPath(filePath);
+    } else {
+      ketQua = await window.api.chonFileExcel();
+    }
   } catch (error) {
     $("trangThai").textContent =
       `Không thể đọc file Excel: ${error.message || error}`;
@@ -248,6 +265,7 @@ $("btnChonExcel").addEventListener("click", async () => {
 
   if (ketQua.error) {
     $("trangThai").textContent = `Lỗi định dạng file: ${ketQua.error}`;
+    showToast(`Lỗi: ${ketQua.error}`, "error", 4000);
     return;
   }
 
@@ -266,6 +284,7 @@ $("btnChonExcel").addEventListener("click", async () => {
   selectedIndexes.clear();
   emailHistory.clear();
   pdfExportedIndexes.clear();
+  portalHistory.clear();
   emailHistoryPage = 1;
   sortState.key = null;
   previewPage = 1;
@@ -273,10 +292,27 @@ $("btnChonExcel").addEventListener("click", async () => {
   searchState.boPhan = "";
   searchState.khoi = "";
   searchState.coSo = "";
-  $("oTimKiem").value = "";
-  $("locBoPhan").value = "";
-  $("locKhoi").value = "";
-  $("locCoSo").value = "";
+  searchPdfQuery = "";
+  searchEmailQuery = "";
+  searchPortalQuery = "";
+  portalBoPhanFilter = "";
+  portalTrangThaiFilter = "all";
+  portalSortState.key = "stt";
+  portalSortState.dir = 1;
+  searchValidationQuery = "";
+  validationMucDoFilter = "all";
+
+  if ($("oTimKiem")) $("oTimKiem").value = "";
+  if ($("oTimKiemPdf")) $("oTimKiemPdf").value = "";
+  if ($("oTimKiemEmail")) $("oTimKiemEmail").value = "";
+  if ($("oTimKiemPortal")) $("oTimKiemPortal").value = "";
+  if ($("oTimKiemValidation")) $("oTimKiemValidation").value = "";
+  if ($("locBoPhan")) $("locBoPhan").value = "";
+  if ($("locKhoi")) $("locKhoi").value = "";
+  if ($("locCoSo")) $("locCoSo").value = "";
+  if ($("locBoPhanPortal")) $("locBoPhanPortal").value = "";
+  if ($("locTrangThaiPortal")) $("locTrangThaiPortal").value = "all";
+  if ($("locMucDoValidation")) $("locMucDoValidation").value = "all";
 
   $("tenFileExcel").textContent = ketQua.filePath.split(/[\\/]/).pop();
   $("soLuong").textContent = danhSachNhanVien.length.toString();
@@ -292,20 +328,75 @@ $("btnChonExcel").addEventListener("click", async () => {
   }
   if (validationResult && !validationResult.isClean) {
     trangThaiParts.push(
-      `Kiểm tra dữ liệu phát hiện ${validationResult.totalErrors} lỗi và ${validationResult.totalWarnings} cảnh báo — xem Bước 3.`,
+      `Kiểm tra dữ liệu phát hiện ${validationResult.totalErrors} lỗi và ${validationResult.totalWarnings} cảnh báo.`,
     );
   }
   $("trangThai").textContent = trangThaiParts.join("\n");
 
   populateFilterOptions();
   renderPreviewTable();
+  renderValidationPanel();
+  renderPdfEmployeeTable();
   renderDashboard();
-  capNhatTrangThaiNutXuat();
+  renderEmailHistoryTable();
+  renderPortalEmployeeTable();
+  syncAllCheckboxes();
 
-  maxUnlockedStep = danhSachNhanVien.length ? 4 : 1;
-  updateStepsNav();
-  goToStep(danhSachNhanVien.length ? 2 : 1);
+  if (danhSachNhanVien.length > 0) {
+    $("mainNavbar").hidden = false;
+    $("heroQuickStats").hidden = false;
+    switchTab("preview");
+    showToast(`✓ Đã nạp thành công ${danhSachNhanVien.length} nhân viên. Đã chuyển sang xem trước!`, "success");
+  } else {
+    $("mainNavbar").hidden = true;
+    $("heroQuickStats").hidden = true;
+    switchTab("home");
+  }
+}
+
+$("btnChonExcel").addEventListener("click", async () => {
+  await xuLyDocFileExcel();
 });
+
+// Hỗ trợ kéo thả file Excel vào khu vực dropzone
+const dropzoneArea = $("dropzoneArea");
+if (dropzoneArea) {
+  ["dragenter", "dragover"].forEach((eventName) => {
+    dropzoneArea.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzoneArea.classList.add("dragover", "drag-over");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((eventName) => {
+    dropzoneArea.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzoneArea.classList.remove("dragover", "drag-over");
+    });
+  });
+
+  dropzoneArea.addEventListener("click", (e) => {
+    if (e.target.closest("#btnChonExcel")) return;
+    xuLyDocFileExcel();
+  });
+
+  dropzoneArea.addEventListener("drop", async (e) => {
+    const files = e.dataTransfer?.files;
+    if (!files || !files.length) return;
+    const file = files[0];
+    const filePath = window.api?.getPathForFile ? window.api.getPathForFile(file) : file.path;
+    if (!filePath) {
+      showToast("Không lấy được đường dẫn file.", "error");
+      return;
+    }
+    await xuLyDocFileExcel(filePath);
+  });
+}
+
+window.addEventListener("dragover", (e) => e.preventDefault(), false);
+window.addEventListener("drop", (e) => e.preventDefault(), false);
 
 // ============================================================
 // TẢI FILE EXCEL MẪU
@@ -406,6 +497,8 @@ function luuCauHinhNeuBat() {
       emailNoiDung: $("emailNoiDung").value,
       emailNguoiGui: $("emailNguoiGui").value,
       emailMatKhauUngDung: $("emailMatKhauUngDung").value,
+      portalSupabaseUrl: $("portalSupabaseUrl")?.value || "",
+      portalServiceRoleKey: $("portalServiceRoleKey")?.value || "",
     };
     try {
       const ketQua = await window.api.luuCauHinh(payload);
@@ -436,8 +529,15 @@ function luuCauHinhNeuBat() {
   "emailNoiDung",
   "emailNguoiGui",
   "emailMatKhauUngDung",
+  "portalSupabaseUrl",
+  "portalServiceRoleKey",
 ].forEach((id) => {
-  $(id).addEventListener("input", luuCauHinhNeuBat);
+  $(id)?.addEventListener("input", () => {
+    luuCauHinhNeuBat();
+    if (id === "portalSupabaseUrl" || id === "portalServiceRoleKey") {
+      capNhatTrangThaiNutPortal();
+    }
+  });
 });
 
 $("chkGhiNhoCauHinh").addEventListener("change", async () => {
@@ -472,6 +572,10 @@ async function khoiTaoCauHinhDaLuu() {
   if (cauHinh.emailNguoiGui) $("emailNguoiGui").value = cauHinh.emailNguoiGui;
   if (cauHinh.emailMatKhauUngDung)
     $("emailMatKhauUngDung").value = cauHinh.emailMatKhauUngDung;
+  if (cauHinh.portalSupabaseUrl && $("portalSupabaseUrl"))
+    $("portalSupabaseUrl").value = cauHinh.portalSupabaseUrl;
+  if (cauHinh.portalServiceRoleKey && $("portalServiceRoleKey"))
+    $("portalServiceRoleKey").value = cauHinh.portalServiceRoleKey;
 
   if (cauHinh.logoDataUri) {
     $("tenFileLogo").textContent =
@@ -482,6 +586,7 @@ async function khoiTaoCauHinhDaLuu() {
   }
 
   hienThongBaoGhiNho("Đã tải cấu hình đã lưu từ lần trước.");
+  capNhatTrangThaiNutXuat();
 }
 
 // ============================================================
@@ -515,6 +620,9 @@ function populateFilterOptions() {
   fillSelect($("locBoPhan"), boPhanSet, "Tất cả bộ phận");
   fillSelect($("locKhoi"), khoiSet, "Tất cả khối");
   fillSelect($("locCoSo"), coSoSet, "Tất cả cơ sở");
+  fillSelect($("locBoPhanPdf"), boPhanSet, "Tất cả bộ phận");
+  fillSelect($("locBoPhanEmail"), boPhanSet, "Tất cả bộ phận");
+  fillSelect($("locBoPhanPortal"), boPhanSet, "Tất cả bộ phận");
 }
 
 function getFilteredIndexes() {
@@ -694,7 +802,7 @@ function wirePreviewTableEvents() {
       });
     }
     renderPreviewTable();
-    capNhatTrangThaiNutXuat();
+    syncAllCheckboxes();
   });
 
   tbody.addEventListener("change", (event) => {
@@ -704,9 +812,7 @@ function wirePreviewTableEvents() {
     const index = Number(checkbox.dataset.index);
     if (checkbox.checked) selectedIndexes.add(index);
     else selectedIndexes.delete(index);
-    renderSelectionSummary();
-    capNhatTrangThaiNutXuat();
-    updateHeadCheckboxState(visiblePreviewIndexes);
+    syncAllCheckboxes();
   });
 
   tbody.addEventListener("click", async (event) => {
@@ -852,39 +958,95 @@ function renderSelectionSummary() {
 }
 
 // ============================================================
-// BƯỚC 3 - KIỂM TRA DỮ LIỆU
+// TRANG KIỂM TRA DỮ LIỆU TỰ ĐỘNG
 // ============================================================
-function renderValidationPanel() {
-  if (currentStep !== 3) {
-    validationPanelDirty = true;
-    return;
-  }
-  validationPanelDirty = false;
+let searchValidationQuery = "";
+let validationMucDoFilter = "all"; // 'all', 'error', 'warning'
 
+function renderValidationPanel() {
   const tbody = $("bangKiemTraBody");
   const cleanBanner = $("cleanBanner");
+  const badge = $("navValidationBadge");
+
+  // Cập nhật huy hiệu trên thanh navbar
+  if (badge) {
+    if (!validationResult || validationResult.totalRows === 0) {
+      badge.hidden = true;
+    } else if (validationResult.isClean) {
+      badge.textContent = "✓";
+      badge.className = "tab-badge ok";
+      badge.hidden = false;
+      badge.title = "Dữ liệu hợp lệ, không có lỗi";
+    } else {
+      const errors = validationResult.rowsWithErrorsCount || validationResult.totalErrors || 0;
+      const warnings = validationResult.rowsWithWarningsCount || validationResult.totalWarnings || 0;
+      if (errors > 0) {
+        badge.textContent = errors.toString();
+        badge.className = "tab-badge error";
+        badge.hidden = false;
+        badge.title = `${errors} dòng phát hiện lỗi`;
+      } else if (warnings > 0) {
+        badge.textContent = warnings.toString();
+        badge.className = "tab-badge warning";
+        badge.hidden = false;
+        badge.title = `${warnings} dòng có cảnh báo`;
+      } else {
+        badge.hidden = true;
+      }
+    }
+  }
+
+  if (!tbody) return;
 
   if (!validationResult) {
-    tbody.innerHTML = "";
-    cleanBanner.hidden = true;
-    $("vTongDong").textContent = "0";
-    $("vSoDongLoi").textContent = "0";
-    $("vSoDongCanhBao").textContent = "0";
-    $("vTongLoi").textContent = "0 / 0";
+    tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">Chưa có dữ liệu kiểm tra. Vui lòng nạp file Excel trước.</td></tr>`;
+    if (cleanBanner) cleanBanner.hidden = true;
+    if ($("vTongDong")) $("vTongDong").textContent = "0";
+    if ($("vSoDongLoi")) $("vSoDongLoi").textContent = "0";
+    if ($("vSoDongCanhBao")) $("vSoDongCanhBao").textContent = "0";
+    if ($("vTongLoi")) $("vTongLoi").textContent = "0 / 0";
     return;
   }
 
-  $("vTongDong").textContent = validationResult.totalRows.toString();
-  $("vSoDongLoi").textContent = validationResult.rowsWithErrorsCount.toString();
-  $("vSoDongCanhBao").textContent =
-    validationResult.rowsWithWarningsCount.toString();
-  $("vTongLoi").textContent =
-    `${validationResult.totalErrors} / ${validationResult.totalWarnings}`;
+  if ($("vTongDong")) $("vTongDong").textContent = validationResult.totalRows.toString();
+  if ($("vSoDongLoi")) $("vSoDongLoi").textContent = validationResult.rowsWithErrorsCount.toString();
+  if ($("vSoDongCanhBao")) $("vSoDongCanhBao").textContent = validationResult.rowsWithWarningsCount.toString();
+  if ($("vTongLoi")) $("vTongLoi").textContent = `${validationResult.totalErrors} / ${validationResult.totalWarnings}`;
 
-  cleanBanner.hidden = !validationResult.isClean;
+  if (cleanBanner) cleanBanner.hidden = !validationResult.isClean;
 
-  tbody.innerHTML = validationResult.rows
-    .slice()
+  let rows = (validationResult.rows || []).slice();
+
+  if (searchValidationQuery) {
+    const q = boDauTiengViet(searchValidationQuery.toLowerCase());
+    rows = rows.filter((r) => {
+      const issueMsgs = (r.issues || []).map((it) => it.message).join(" ");
+      const text = boDauTiengViet(`${r.stt} ${r.maNV || ""} ${r.hoTen || ""} ${issueMsgs}`).toLowerCase();
+      return text.includes(q);
+    });
+  }
+
+  if (validationMucDoFilter !== "all") {
+    rows = rows.filter((r) => {
+      const hasError = r.issues && r.issues.some((it) => it.level === "error");
+      return validationMucDoFilter === "error" ? hasError : !hasError;
+    });
+  }
+
+  if (!rows.length) {
+    if (validationResult.isClean) {
+      tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:36px;font-size:13.5px">
+        <span style="font-size:26px;display:block;margin-bottom:8px">🎉</span>
+        <strong style="color:var(--primary-dark)">Dữ liệu hoàn toàn chuẩn xác!</strong><br/>
+        Không phát hiện bất kỳ lỗi hoặc cảnh báo định dạng nào trong file Excel này.
+      </td></tr>`;
+    } else {
+      tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">Không tìm thấy dòng nào phù hợp với bộ lọc tìm kiếm.</td></tr>`;
+    }
+    return;
+  }
+
+  tbody.innerHTML = rows
     .sort((a, b) => a.stt - b.stt)
     .map((r) => {
       const hasError = r.issues.some((it) => it.level === "error");
@@ -892,17 +1054,256 @@ function renderValidationPanel() {
         .map((it) => `<span class="badge ${it.level}">${it.message}</span>`)
         .join("");
       return `<tr class="${hasError ? "has-error" : "has-warning"}">
-        <td>${r.stt}</td>
-        <td>${r.maNV || "—"}</td>
-        <td>${r.hoTen || "—"}</td>
+        <td style="text-align:center;font-weight:600;color:var(--text-muted)">${r.stt}</td>
+        <td><strong style="color:var(--primary-dark)">${r.maNV || "—"}</strong></td>
+        <td><strong>${r.hoTen || "—"}</strong></td>
         <td class="issues-cell">${badges}</td>
+        <td style="text-align:center">
+          <button type="button" class="row-action-btn secondary btn-xem-dong-preview" data-row-index="${r.rowIndex}" title="Xem dòng này trên bảng Xem trước">
+            Xem dòng 👁️
+          </button>
+        </td>
       </tr>`;
     })
     .join("");
 }
 
+function wireValidationEvents() {
+  $("btnChuyenSangXemTruoc")?.addEventListener("click", () => {
+    switchTab("preview");
+  });
+
+  $("oTimKiemValidation")?.addEventListener("input", (e) => {
+    searchValidationQuery = e.target.value.trim();
+    renderValidationPanel();
+  });
+
+  $("locMucDoValidation")?.addEventListener("change", (e) => {
+    validationMucDoFilter = e.target.value;
+    renderValidationPanel();
+  });
+
+  $("btnResetLocValidation")?.addEventListener("click", () => {
+    if ($("oTimKiemValidation")) $("oTimKiemValidation").value = "";
+    if ($("locMucDoValidation")) $("locMucDoValidation").value = "all";
+    searchValidationQuery = "";
+    validationMucDoFilter = "all";
+    renderValidationPanel();
+  });
+
+  $("bangKiemTraBody")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-xem-dong-preview");
+    if (!btn) return;
+    const rowIndex = Number(btn.dataset.rowIndex);
+    const nv = danhSachNhanVien[rowIndex];
+    if (nv) {
+      searchState.query = nv.maNV || nv.hoTen || "";
+      if ($("oTimKiem")) $("oTimKiem").value = searchState.query;
+      searchState.boPhan = "";
+      searchState.khoi = "";
+      searchState.coSo = "";
+      if ($("locBoPhan")) $("locBoPhan").value = "";
+      if ($("locKhoi")) $("locKhoi").value = "";
+      if ($("locCoSo")) $("locCoSo").value = "";
+      previewPage = 1;
+    }
+    switchTab("preview");
+  });
+}
+
 // ============================================================
-// BƯỚC 4 - GỬI EMAIL & LỊCH SỬ GỬI
+// BẢNG NHÂN VIÊN XUẤT PDF (TRANG 2)
+// ============================================================
+let searchPdfQuery = "";
+let pdfBoPhanFilter = "";
+let pdfTrangThaiFilter = "all"; // 'all', 'da_xuat', 'chua_xuat'
+const pdfSortState = { key: "stt", dir: 1 };
+
+function getFilteredPdfIndexes() {
+  if (!danhSachNhanVien.length) return [];
+  let indexes = danhSachNhanVien.map((_, i) => i);
+
+  if (searchPdfQuery) {
+    const q = boDauTiengViet(searchPdfQuery.toLowerCase());
+    indexes = indexes.filter((i) => (searchableEmployeeTexts[i] || "").includes(q));
+  }
+  if (pdfBoPhanFilter) {
+    indexes = indexes.filter((i) => danhSachNhanVien[i].boPhan === pdfBoPhanFilter);
+  }
+  if (pdfTrangThaiFilter !== "all") {
+    indexes = indexes.filter((i) => {
+      const daXuat = pdfExportedIndexes.has(i);
+      return pdfTrangThaiFilter === "da_xuat" ? daXuat : !daXuat;
+    });
+  }
+
+  // Sắp xếp
+  if (pdfSortState.key) {
+    const { key, dir } = pdfSortState;
+    indexes.sort((a, b) => {
+      const nva = danhSachNhanVien[a];
+      const nvb = danhSachNhanVien[b];
+      if (key === "stt") return (a - b) * dir;
+      if (key === "thucNhan") return (Number(nva.thucNhan || 0) - Number(nvb.thucNhan || 0)) * dir;
+      if (key === "daXuat") {
+        const va = pdfExportedIndexes.has(a) ? 1 : 0;
+        const vb = pdfExportedIndexes.has(b) ? 1 : 0;
+        return (va - vb) * dir;
+      }
+      const va = String(nva[key] || "");
+      const vb = String(nvb[key] || "");
+      return va.localeCompare(vb, "vi") * dir;
+    });
+  }
+
+  return indexes;
+}
+
+function renderPdfEmployeeTable() {
+  const tbody = $("bangNhanVienPdfBody");
+  if (!tbody) return;
+
+  const indexes = getFilteredPdfIndexes();
+  const lblCount = $("soLuongLocPdfLabel");
+  if (lblCount) {
+    lblCount.textContent = `${indexes.length} / ${danhSachNhanVien.length} nhân viên`;
+  }
+
+  // Cập nhật mũi tên sắp xếp trên thead
+  const thead = $("bangPdfTable")?.querySelector("thead");
+  if (thead) {
+    thead.querySelectorAll("th.sortable").forEach((th) => {
+      const arrow = th.querySelector(".sort-arrow");
+      if (arrow) {
+        arrow.textContent = pdfSortState.key === th.dataset.sortKey ? (pdfSortState.dir === 1 ? "▲" : "▼") : "";
+      }
+    });
+  }
+
+  if (!indexes.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Không tìm thấy nhân viên phù hợp bộ lọc.</td></tr>`;
+    return;
+  }
+
+  const rows = indexes.map((index, stt) => {
+    const nv = danhSachNhanVien[index];
+    const isChecked = selectedIndexes.has(index);
+    const daXuat = pdfExportedIndexes.has(index);
+
+    return `<tr>
+      <td class="chk-col"><input type="checkbox" class="row-chk-pdf" data-index="${index}" ${isChecked ? "checked" : ""}></td>
+      <td>${stt + 1}</td>
+      <td><span class="code-pill">${nv.maNV || "—"}</span></td>
+      <td><strong>${nv.hoTen || "—"}</strong></td>
+      <td>${nv.boPhan || "—"}</td>
+      <td style="text-align:right;font-weight:600;color:var(--text)">${dinhDangTien(nv.thucNhan)}</td>
+      <td style="text-align:center">${daXuat ? '<span class="badge ok">✓ Đã xuất</span>' : '<span class="badge" style="background:var(--card-bg);border:1px solid var(--border)">Chưa xuất</span>'}</td>
+      <td style="text-align:center">
+        <button class="row-action-btn secondary preview-btn" data-preview-index="${index}" type="button">Xem thử</button>
+      </td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = rows.join("");
+}
+
+function wirePdfTableEvents() {
+  const tbody = $("bangNhanVienPdfBody");
+  const chkAll = $("chkAllPdf");
+  const searchInput = $("oTimKiemPdf");
+  const locBoPhan = $("locBoPhanPdf");
+  const locTrangThai = $("locTrangThaiPdf");
+  const btnReset = $("btnResetLocPdf");
+
+  // Sắp xếp khi click tiêu đề cột
+  $("bangPdfTable")?.querySelector("thead")?.addEventListener("click", (e) => {
+    const th = e.target.closest("th.sortable");
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (pdfSortState.key === key) {
+      pdfSortState.dir *= -1;
+    } else {
+      pdfSortState.key = key;
+      pdfSortState.dir = 1;
+    }
+    renderPdfEmployeeTable();
+  });
+
+  chkAll?.addEventListener("change", (e) => {
+    const filtered = getFilteredPdfIndexes();
+    if (e.target.checked) {
+      filtered.forEach((i) => selectedIndexes.add(i));
+    } else {
+      filtered.forEach((i) => selectedIndexes.delete(i));
+    }
+    syncAllCheckboxes();
+  });
+
+  tbody?.addEventListener("change", (e) => {
+    const cb = e.target.closest(".row-chk-pdf");
+    if (!cb) return;
+    const idx = Number(cb.dataset.index);
+    if (cb.checked) selectedIndexes.add(idx);
+    else selectedIndexes.delete(idx);
+    syncAllCheckboxes();
+  });
+
+  tbody?.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".preview-btn");
+    if (!btn || !tbody.contains(btn)) return;
+    const idx = Number(btn.dataset.previewIndex);
+    const nv = danhSachNhanVien[idx];
+    if (!nv) return;
+    try {
+      btn.disabled = true;
+      btn.textContent = "Đang mở…";
+      await window.api.xemTruocPdf({
+        nhanVien: nv,
+        tenCongTy: $("tenCongTy").value,
+        thangNam: $("thangNam").value,
+      });
+    } catch (err) {
+      showToast(`Không thể xem trước PDF: ${err.message || err}`, "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Xem thử";
+    }
+  });
+
+  searchInput?.addEventListener("input", (e) => {
+    searchPdfQuery = e.target.value.trim();
+    renderPdfEmployeeTable();
+    syncAllCheckboxes();
+  });
+
+  locBoPhan?.addEventListener("change", (e) => {
+    pdfBoPhanFilter = e.target.value;
+    renderPdfEmployeeTable();
+    syncAllCheckboxes();
+  });
+
+  locTrangThai?.addEventListener("change", (e) => {
+    pdfTrangThaiFilter = e.target.value;
+    renderPdfEmployeeTable();
+    syncAllCheckboxes();
+  });
+
+  btnReset?.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    if (locBoPhan) locBoPhan.value = "";
+    if (locTrangThai) locTrangThai.value = "all";
+    searchPdfQuery = "";
+    pdfBoPhanFilter = "";
+    pdfTrangThaiFilter = "all";
+    pdfSortState.key = "stt";
+    pdfSortState.dir = 1;
+    renderPdfEmployeeTable();
+    syncAllCheckboxes();
+  });
+}
+
+// ============================================================
+// BẢNG NHÂN VIÊN GỬI EMAIL (TRANG 3)
 // ============================================================
 const trangThaiGuiEmailLabel = {
   sending: "Đang gửi...",
@@ -910,66 +1311,157 @@ const trangThaiGuiEmailLabel = {
   error: "✕ Lỗi",
 };
 
+let searchEmailQuery = "";
+let emailBoPhanFilter = "";
+let emailTrangThaiFilter = "all"; // 'all', 'sent', 'pending', 'error', 'has_email', 'no_email'
+const emailSortState = { key: "maNV", dir: 1 };
+
+function getFilteredEmailIndexes() {
+  if (!danhSachNhanVien.length) return [];
+  let indexes = danhSachNhanVien.map((_, i) => i);
+
+  if (searchEmailQuery) {
+    const q = boDauTiengViet(searchEmailQuery.toLowerCase());
+    indexes = indexes.filter((i) => {
+      const nv = danhSachNhanVien[i];
+      const text = `${searchableEmployeeTexts[i] || ""} ${boDauTiengViet(nv.email || "")}`.toLowerCase();
+      return text.includes(q);
+    });
+  }
+  if (emailBoPhanFilter) {
+    indexes = indexes.filter((i) => danhSachNhanVien[i].boPhan === emailBoPhanFilter);
+  }
+  if (emailTrangThaiFilter !== "all") {
+    indexes = indexes.filter((i) => {
+      const nv = danhSachNhanVien[i];
+      const su = emailHistory.get(i);
+      const st = su ? su.status : "pending";
+      if (emailTrangThaiFilter === "has_email") return Boolean(nv.email);
+      if (emailTrangThaiFilter === "no_email") return !nv.email;
+      return st === emailTrangThaiFilter;
+    });
+  }
+
+  // Sắp xếp
+  if (emailSortState.key) {
+    const { key, dir } = emailSortState;
+    indexes.sort((a, b) => {
+      const nva = danhSachNhanVien[a];
+      const nvb = danhSachNhanVien[b];
+      if (key === "time") {
+        const ta = emailHistory.get(a)?.time ? new Date(emailHistory.get(a).time).getTime() : 0;
+        const tb = emailHistory.get(b)?.time ? new Date(emailHistory.get(b).time).getTime() : 0;
+        return (ta - tb) * dir;
+      }
+      if (key === "trangThai") {
+        const sa = emailHistory.get(a)?.status || "pending";
+        const sb = emailHistory.get(b)?.status || "pending";
+        return sa.localeCompare(sb) * dir;
+      }
+      const va = String(nva[key] || "");
+      const vb = String(nvb[key] || "");
+      return va.localeCompare(vb, "vi") * dir;
+    });
+  }
+
+  return indexes;
+}
+
 function renderEmailHistoryTable() {
   const tbody = $("bangDaChonBody");
-  const pagination = $("emailHistoryPagination");
+  if (!tbody) return;
 
-  $("soLuongDaChonLabel").textContent =
-    `${selectedIndexes.size} nhân viên đã chọn`;
+  const indexes = getFilteredEmailIndexes();
 
-  if (currentStep !== 4) {
-    emailHistoryDirty = true;
-    return;
-  }
-  emailHistoryDirty = false;
-
-  if (!danhSachNhanVien.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="muted">Chưa có dữ liệu. Hãy đọc file Excel ở Bước 1.</td></tr>`;
-    pagination.hidden = true;
-    return;
+  // Cập nhật mũi tên sắp xếp trên thead
+  const thead = $("bangEmailTable")?.querySelector("thead");
+  if (thead) {
+    thead.querySelectorAll("th.sortable").forEach((th) => {
+      const arrow = th.querySelector(".sort-arrow");
+      if (arrow) {
+        arrow.textContent = emailSortState.key === th.dataset.sortKey ? (emailSortState.dir === 1 ? "▲" : "▼") : "";
+      }
+    });
   }
 
-  const totalPages = Math.max(1, Math.ceil(danhSachNhanVien.length / PREVIEW_PAGE_SIZE));
-  emailHistoryPage = Math.min(emailHistoryPage, totalPages);
-  const pageStart = (emailHistoryPage - 1) * PREVIEW_PAGE_SIZE;
-  const pageEmployees = danhSachNhanVien.slice(
-    pageStart,
-    pageStart + PREVIEW_PAGE_SIZE,
-  );
+  if (!indexes.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Không tìm thấy nhân viên phù hợp bộ lọc.</td></tr>`;
+    if ($("emailHistoryPagination")) $("emailHistoryPagination").hidden = true;
+    return;
+  }
 
-  tbody.innerHTML = pageEmployees
-    .map((nv, pageIndex) => {
-      const index = pageStart + pageIndex;
-      const su = emailHistory.get(index);
-      const trangThai = su
-        ? `<span class="badge ${su.status === "error" ? "error" : su.status === "sending" ? "warning" : ""}">${trangThaiGuiEmailLabel[su.status] || ""}</span>${su.status === "error" && su.error ? `<div class="muted small">${su.error}</div>` : ""}`
-        : `<span class="muted">Chưa gửi</span>`;
-      const thoiGian = su && su.time ? su.time.toLocaleString("vi-VN") : "—";
-      const coEmail = Boolean(nv.email);
+  const rows = indexes.map((index) => {
+    const nv = danhSachNhanVien[index];
+    const isChecked = selectedIndexes.has(index);
+    const su = emailHistory.get(index);
+    const trangThai = su
+      ? `<span class="badge ${su.status === "error" ? "error" : su.status === "sending" ? "warning" : "ok"}">${trangThaiGuiEmailLabel[su.status] || ""}</span>${su.status === "error" && su.error ? `<div class="muted small">${su.error}</div>` : ""}`
+      : `<span class="badge" style="background:var(--card-bg);border:1px solid var(--border)">Chưa gửi</span>`;
+    const thoiGian = su && su.time ? (su.time instanceof Date ? su.time.toLocaleTimeString("vi-VN") : String(su.time)) : "—";
+    const coEmail = Boolean(nv.email);
 
-      return `
-      <tr>
-        <td>${nv.maNV || "—"}</td>
-        <td>${nv.hoTen || "—"}</td>
-        <td>${nv.email || '<span class="muted">(chưa có email)</span>'}</td>
-        <td>${trangThai}</td>
-        <td>${thoiGian}</td>
-        <td class="action-cell">
-          <button class="row-action-btn tertiary" data-gui-lai-index="${index}" ${coEmail ? "" : "disabled"}>${su && su.status === "sent" ? "Gửi lại" : "Gửi email"}</button>
-        </td>
-      </tr>`;
-    })
-    .join("");
-  pagination.hidden = danhSachNhanVien.length <= PREVIEW_PAGE_SIZE;
-  $("emailHistoryPaginationLabel").textContent =
-    `Hiển thị ${pageStart + 1}–${pageStart + pageEmployees.length} / ${danhSachNhanVien.length}`;
-  $("btnEmailHistoryPrevious").disabled = emailHistoryPage === 1;
-  $("btnEmailHistoryNext").disabled = emailHistoryPage === totalPages;
+    return `<tr>
+      <td class="chk-col"><input type="checkbox" class="row-chk-email" data-index="${index}" ${isChecked ? "checked" : ""}></td>
+      <td><span class="code-pill">${nv.maNV || "—"}</span></td>
+      <td><strong>${nv.hoTen || "—"}</strong></td>
+      <td>${nv.boPhan || "—"}</td>
+      <td>${nv.email || '<span class="muted">(chưa có email)</span>'}</td>
+      <td style="text-align:center">${trangThai}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${thoiGian}</td>
+      <td style="text-align:center">
+        <button class="row-action-btn tertiary" data-gui-lai-index="${index}" ${coEmail ? "" : "disabled"} type="button">
+          ${su && su.status === "sent" ? "Gửi lại" : "Gửi lẻ"}
+        </button>
+      </td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = rows.join("");
+  if ($("emailHistoryPagination")) $("emailHistoryPagination").hidden = true;
 }
 
 function wireEmailHistoryEvents() {
   const tbody = $("bangDaChonBody");
-  tbody.addEventListener("click", async (event) => {
+  const chkAll = $("chkAllEmail");
+  const searchInput = $("oTimKiemEmail");
+  const locBoPhan = $("locBoPhanEmail");
+  const locTrangThai = $("locTrangThaiEmail");
+  const btnReset = $("btnResetLocEmail");
+
+  // Sắp xếp khi click tiêu đề cột
+  $("bangEmailTable")?.querySelector("thead")?.addEventListener("click", (e) => {
+    const th = e.target.closest("th.sortable");
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (emailSortState.key === key) {
+      emailSortState.dir *= -1;
+    } else {
+      emailSortState.key = key;
+      emailSortState.dir = 1;
+    }
+    renderEmailHistoryTable();
+  });
+
+  chkAll?.addEventListener("change", (e) => {
+    const filtered = getFilteredEmailIndexes();
+    if (e.target.checked) {
+      filtered.forEach((i) => selectedIndexes.add(i));
+    } else {
+      filtered.forEach((i) => selectedIndexes.delete(i));
+    }
+    syncAllCheckboxes();
+  });
+
+  tbody?.addEventListener("change", (e) => {
+    const cb = e.target.closest(".row-chk-email");
+    if (!cb) return;
+    const idx = Number(cb.dataset.index);
+    if (cb.checked) selectedIndexes.add(idx);
+    else selectedIndexes.delete(idx);
+    syncAllCheckboxes();
+  });
+
+  tbody?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-gui-lai-index]");
     if (!button || !tbody.contains(button)) return;
 
@@ -984,22 +1476,318 @@ function wireEmailHistoryEvents() {
     if (xacNhan) await guiEmailMotNguoi(index);
   });
 
-  $("btnEmailHistoryPrevious").addEventListener("click", () => {
-    if (emailHistoryPage <= 1) return;
-    emailHistoryPage -= 1;
+  searchInput?.addEventListener("input", (e) => {
+    searchEmailQuery = e.target.value.trim();
     renderEmailHistoryTable();
+    syncAllCheckboxes();
   });
 
-  $("btnEmailHistoryNext").addEventListener("click", () => {
-    const totalPages = Math.ceil(danhSachNhanVien.length / PREVIEW_PAGE_SIZE);
-    if (emailHistoryPage >= totalPages) return;
-    emailHistoryPage += 1;
+  locBoPhan?.addEventListener("change", (e) => {
+    emailBoPhanFilter = e.target.value;
     renderEmailHistoryTable();
+    syncAllCheckboxes();
+  });
+
+  locTrangThai?.addEventListener("change", (e) => {
+    emailTrangThaiFilter = e.target.value;
+    renderEmailHistoryTable();
+    syncAllCheckboxes();
+  });
+
+  btnReset?.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    if (locBoPhan) locBoPhan.value = "";
+    if (locTrangThai) locTrangThai.value = "all";
+    searchEmailQuery = "";
+    emailBoPhanFilter = "";
+    emailTrangThaiFilter = "all";
+    emailSortState.key = "maNV";
+    emailSortState.dir = 1;
+    renderEmailHistoryTable();
+    syncAllCheckboxes();
   });
 }
 
 // ============================================================
-// DASHBOARD TỔNG QUAN (Bước 4)
+// BẢNG NHÂN VIÊN UPLOAD PORTAL (TRANG 4)
+// ============================================================
+const portalTrangThaiLabel = {
+  uploading: "Đang upload...",
+  uploaded: "✓ Đã upload",
+  error: "✕ Lỗi",
+};
+
+const portalHistory = new Map();
+let searchPortalQuery = "";
+let portalBoPhanFilter = "";
+let portalTrangThaiFilter = "all"; // 'all', 'uploaded', 'pending', 'error'
+const portalSortState = { key: "stt", dir: 1 };
+
+function getFilteredPortalIndexes() {
+  if (!danhSachNhanVien.length) return [];
+  let indexes = danhSachNhanVien.map((_, i) => i);
+
+  if (searchPortalQuery) {
+    const q = boDauTiengViet(searchPortalQuery.toLowerCase());
+    indexes = indexes.filter((i) => {
+      const nv = danhSachNhanVien[i];
+      const portalAccount = `${(nv.maNV || "").trim().toLowerCase()}@hehehr.internal`;
+      const text = `${searchableEmployeeTexts[i] || ""} ${boDauTiengViet(portalAccount)}`.toLowerCase();
+      return text.includes(q);
+    });
+  }
+
+  if (portalBoPhanFilter) {
+    indexes = indexes.filter((i) => danhSachNhanVien[i].boPhan === portalBoPhanFilter);
+  }
+
+  if (portalTrangThaiFilter !== "all") {
+    indexes = indexes.filter((i) => {
+      const hist = portalHistory.get(i);
+      const st = hist ? hist.status : "pending";
+      return st === portalTrangThaiFilter;
+    });
+  }
+
+  if (portalSortState.key) {
+    const { key, dir } = portalSortState;
+    indexes.sort((a, b) => {
+      if (key === "stt") {
+        return (a - b) * dir;
+      }
+      if (key === "trangThai") {
+        const sa = portalHistory.get(a)?.status || "pending";
+        const sb = portalHistory.get(b)?.status || "pending";
+        return sa.localeCompare(sb) * dir;
+      }
+      if (key === "portalAccount") {
+        const pa = `${(danhSachNhanVien[a].maNV || "").trim().toLowerCase()}@hehehr.internal`;
+        const pb = `${(danhSachNhanVien[b].maNV || "").trim().toLowerCase()}@hehehr.internal`;
+        return pa.localeCompare(pb) * dir;
+      }
+      const va = String(danhSachNhanVien[a][key] || "");
+      const vb = String(danhSachNhanVien[b][key] || "");
+      return va.localeCompare(vb, "vi") * dir;
+    });
+  }
+
+  return indexes;
+}
+
+function renderPortalEmployeeTable() {
+  const tbody = $("bangNhanVienPortalBody");
+  if (!tbody) return;
+
+  const indexes = getFilteredPortalIndexes();
+
+  // Cập nhật mũi tên sắp xếp trên thead
+  const thead = $("bangPortalTable")?.querySelector("thead");
+  if (thead) {
+    thead.querySelectorAll("th.sortable").forEach((th) => {
+      const arrow = th.querySelector(".sort-arrow");
+      if (arrow) {
+        arrow.textContent = portalSortState.key === th.dataset.sortKey ? (portalSortState.dir === 1 ? "▲" : "▼") : "";
+      }
+    });
+  }
+
+  const lblSub = $("soLuongLocPortalLabel");
+  if (lblSub) {
+    if (danhSachNhanVien.length) {
+      lblSub.textContent = `Hiển thị ${indexes.length}/${danhSachNhanVien.length} nhân viên`;
+    } else {
+      lblSub.textContent = "Tích chọn nhân viên cần upload lên web";
+    }
+  }
+
+  if (!indexes.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Không tìm thấy nhân viên phù hợp bộ lọc.</td></tr>`;
+    return;
+  }
+
+  const rows = indexes.map((index, stt) => {
+    const nv = danhSachNhanVien[index];
+    const isChecked = selectedIndexes.has(index);
+    const portalAccount = `${(nv.maNV || "").trim().toLowerCase()}@hehehr.internal`;
+    const hist = portalHistory.get(index);
+    const trangThai = hist
+      ? `<span class="badge ${hist.status === "error" ? "error" : hist.status === "uploading" ? "warning" : "ok"}">${portalTrangThaiLabel[hist.status] || ""}</span>${hist.status === "error" && hist.error ? `<div class="muted small">${hist.error}</div>` : ""}`
+      : `<span class="badge" style="background:var(--card-bg);border:1px solid var(--border)">Chưa upload</span>`;
+
+    return `<tr>
+      <td class="chk-col"><input type="checkbox" class="row-chk-portal" data-index="${index}" ${isChecked ? "checked" : ""}></td>
+      <td style="text-align:center;color:var(--text-muted)">${stt + 1}</td>
+      <td><span class="code-pill">${nv.maNV || "—"}</span></td>
+      <td><strong>${nv.hoTen || "—"}</strong></td>
+      <td>${nv.boPhan || "—"}</td>
+      <td><code class="code-pill">${portalAccount}</code></td>
+      <td style="text-align:center">${trangThai}</td>
+      <td style="text-align:center">
+        <button class="row-action-btn tertiary upload-portal-one-btn" data-upload-portal-index="${index}" type="button">
+          ${hist && hist.status === "uploaded" ? "Upload lại" : "Upload lẻ"}
+        </button>
+      </td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = rows.join("");
+}
+
+function wirePortalTableEvents() {
+  const tbody = $("bangNhanVienPortalBody");
+  const chkAll = $("chkAllPortal");
+  const searchInput = $("oTimKiemPortal");
+  const locBoPhan = $("locBoPhanPortal");
+  const locTrangThai = $("locTrangThaiPortal");
+  const btnReset = $("btnResetLocPortal");
+
+  // Sắp xếp khi click tiêu đề cột
+  $("bangPortalTable")?.querySelector("thead")?.addEventListener("click", (e) => {
+    const th = e.target.closest("th.sortable");
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (portalSortState.key === key) {
+      portalSortState.dir *= -1;
+    } else {
+      portalSortState.key = key;
+      portalSortState.dir = 1;
+    }
+    renderPortalEmployeeTable();
+  });
+
+  chkAll?.addEventListener("change", (e) => {
+    const filtered = getFilteredPortalIndexes();
+    if (e.target.checked) {
+      filtered.forEach((i) => selectedIndexes.add(i));
+    } else {
+      filtered.forEach((i) => selectedIndexes.delete(i));
+    }
+    syncAllCheckboxes();
+  });
+
+  tbody?.addEventListener("change", (e) => {
+    const cb = e.target.closest(".row-chk-portal");
+    if (!cb) return;
+    const idx = Number(cb.dataset.index);
+    if (cb.checked) selectedIndexes.add(idx);
+    else selectedIndexes.delete(idx);
+    syncAllCheckboxes();
+  });
+
+  tbody?.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".upload-portal-one-btn");
+    if (!btn || !tbody.contains(btn)) return;
+    const idx = Number(btn.dataset.uploadPortalIndex);
+    const nv = danhSachNhanVien[idx];
+    if (!nv) return;
+
+    const xacNhan = await showConfirmModal({
+      title: "Xác nhận Upload Portal",
+      message: `Upload phiếu lương của "${nv.hoTen || nv.maNV}" lên Web Portal?`,
+      confirmLabel: "Upload",
+    });
+    if (!xacNhan) return;
+    await uploadPortalChoDanhSach([idx]);
+  });
+
+  searchInput?.addEventListener("input", (e) => {
+    searchPortalQuery = e.target.value.trim();
+    renderPortalEmployeeTable();
+    syncAllCheckboxes();
+  });
+
+  locBoPhan?.addEventListener("change", (e) => {
+    portalBoPhanFilter = e.target.value;
+    renderPortalEmployeeTable();
+    syncAllCheckboxes();
+  });
+
+  locTrangThai?.addEventListener("change", (e) => {
+    portalTrangThaiFilter = e.target.value;
+    renderPortalEmployeeTable();
+    syncAllCheckboxes();
+  });
+
+  btnReset?.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    if (locBoPhan) locBoPhan.value = "";
+    if (locTrangThai) locTrangThai.value = "all";
+    searchPortalQuery = "";
+    portalBoPhanFilter = "";
+    portalTrangThaiFilter = "all";
+    portalSortState.key = "stt";
+    portalSortState.dir = 1;
+    renderPortalEmployeeTable();
+    syncAllCheckboxes();
+  });
+}
+
+// ============================================================
+// ĐỒNG BỘ TRẠNG THÁI CHECKBOX TRÊN TẤT CẢ CÁC TRANG & HEADER
+// ============================================================
+function syncAllCheckboxes() {
+  renderSelectionSummary();
+  capNhatTrangThaiNutXuat();
+
+  // Đồng bộ tất cả checkbox nhân viên
+  document
+    .querySelectorAll(".row-chk, .row-chk-pdf, .row-chk-email, .row-chk-portal")
+    .forEach((cb) => {
+      const idx = Number(cb.dataset.index);
+      cb.checked = selectedIndexes.has(idx);
+    });
+
+  // Đồng bộ header checkbox Xem trước
+  updateHeadCheckboxState(visiblePreviewIndexes);
+
+  // Đồng bộ header checkbox PDF
+  const chkAllPdf = $("chkAllPdf");
+  if (chkAllPdf) {
+    const filteredPdf = getFilteredPdfIndexes();
+    if (!filteredPdf.length) {
+      chkAllPdf.checked = false;
+      chkAllPdf.indeterminate = false;
+    } else {
+      const allChecked = filteredPdf.every((i) => selectedIndexes.has(i));
+      const someChecked = filteredPdf.some((i) => selectedIndexes.has(i));
+      chkAllPdf.checked = allChecked;
+      chkAllPdf.indeterminate = !allChecked && someChecked;
+    }
+  }
+
+  // Đồng bộ header checkbox Email
+  const chkAllEmail = $("chkAllEmail");
+  if (chkAllEmail) {
+    const filteredEmail = getFilteredEmailIndexes();
+    if (!filteredEmail.length) {
+      chkAllEmail.checked = false;
+      chkAllEmail.indeterminate = false;
+    } else {
+      const allChecked = filteredEmail.every((i) => selectedIndexes.has(i));
+      const someChecked = filteredEmail.some((i) => selectedIndexes.has(i));
+      chkAllEmail.checked = allChecked;
+      chkAllEmail.indeterminate = !allChecked && someChecked;
+    }
+  }
+
+  // Đồng bộ header checkbox Portal
+  const chkAllPortal = $("chkAllPortal");
+  if (chkAllPortal) {
+    const filteredPortal = getFilteredPortalIndexes();
+    if (!filteredPortal.length) {
+      chkAllPortal.checked = false;
+      chkAllPortal.indeterminate = false;
+    } else {
+      const allChecked = filteredPortal.every((i) => selectedIndexes.has(i));
+      const someChecked = filteredPortal.some((i) => selectedIndexes.has(i));
+      chkAllPortal.checked = allChecked;
+      chkAllPortal.indeterminate = !allChecked && someChecked;
+    }
+  }
+}
+
+// ============================================================
+// DASHBOARD TỔNG QUAN (EMAIL & THỐNG KÊ)
 // ============================================================
 function renderDashboard() {
   const tong = danhSachNhanVien.length;
@@ -1012,13 +1800,13 @@ function renderDashboard() {
   const chuaGui = Math.max(tong - daGui - loi, 0);
   const phanTram = tong ? Math.round((daGui / tong) * 100) : 0;
 
-  $("dbTongNhanVien").textContent = tong.toString();
-  $("dbDaGui").textContent = daGui.toString();
-  $("dbChuaGui").textContent = chuaGui.toString();
-  $("dbLoi").textContent = loi.toString();
-  $("dbPdfDaTao").textContent = pdfExportedIndexes.size.toString();
-  $("dbPhanTram").textContent = `${phanTram}%`;
-  $("dashboardBarFill").style.width = `${phanTram}%`;
+  if ($("dbTongNhanVien")) $("dbTongNhanVien").textContent = tong.toString();
+  if ($("dbDaGui")) $("dbDaGui").textContent = daGui.toString();
+  if ($("dbChuaGui")) $("dbChuaGui").textContent = chuaGui.toString();
+  if ($("dbLoi")) $("dbLoi").textContent = loi.toString();
+  if ($("dbPdfDaTao")) $("dbPdfDaTao").textContent = pdfExportedIndexes.size.toString();
+  if ($("dbPhanTram")) $("dbPhanTram").textContent = `${phanTram}%`;
+  if ($("dashboardBarFill")) $("dashboardBarFill").style.width = `${phanTram}%`;
 }
 
 function hienThanhTienDo(tongSo) {
@@ -1045,10 +1833,26 @@ window.api.onXuatPdfTienDo((data) => {
 
 function capNhatTrangThaiNutXuat() {
   $("btnXuatPdf").disabled =
-    pdfJobInFlight || emailJobInFlight || !(danhSachNhanVien.length > 0 && thuMucLuu);
+    pdfJobInFlight || emailJobInFlight || portalJobInFlight || !(danhSachNhanVien.length > 0 && thuMucLuu);
   $("btnXuatChon").disabled =
-    pdfJobInFlight || emailJobInFlight || !(selectedIndexes.size > 0 && thuMucLuu);
+    pdfJobInFlight || emailJobInFlight || portalJobInFlight || !(selectedIndexes.size > 0 && thuMucLuu);
   capNhatTrangThaiNutGuiEmail();
+  capNhatTrangThaiNutPortal();
+}
+
+function capNhatTrangThaiNutPortal() {
+  const btnChon = $("btnUploadPortalChon");
+  const btnTatCa = $("btnUploadPortalTatCa");
+  if (!btnChon || !btnTatCa) return;
+
+  const url = $("portalSupabaseUrl")?.value.trim();
+  const key = $("portalServiceRoleKey")?.value.trim();
+  const coThongTin = Boolean(url && key);
+
+  btnTatCa.disabled =
+    portalJobInFlight || pdfJobInFlight || emailJobInFlight || !danhSachNhanVien.length || !coThongTin;
+  btnChon.disabled =
+    portalJobInFlight || pdfJobInFlight || emailJobInFlight || !selectedIndexes.size || !coThongTin;
 }
 
 async function xuatPdfChoDanhSach(indexes, nhanTrangThaiDangXuat) {
@@ -1144,6 +1948,8 @@ async function xuatPdfChoDanhSach(indexes, nhanTrangThaiDangXuat) {
     pdfJobInFlight = false;
     capNhatTrangThaiNutXuat();
     renderDashboard();
+    renderPdfEmployeeTable();
+    syncAllCheckboxes();
     setTimeout(anThanhTienDo, 1200);
   }
 }
@@ -1209,7 +2015,7 @@ function kiemTraThongTinGmail() {
   const { taiKhoanGmail } = layThongTinEmail();
   if (!taiKhoanGmail.email || !taiKhoanGmail.matKhauUngDung) {
     showToast(
-      "Vui lòng nhập Email người gửi và Mật khẩu ứng dụng Gmail ở mục 5.",
+      "Vui lòng nhập Email người gửi và Mật khẩu ứng dụng trong Cài đặt (⚙️).",
       "error",
     );
     return false;
@@ -1472,33 +2278,979 @@ $("btnGuiEmailTatCa").addEventListener("click", async () => {
 });
 
 // ============================================================
-// ĐIỀU HƯỚNG 4 BƯỚC
+// UPLOAD LÊN PORTAL (SUPABASE)
 // ============================================================
-function updateStepsNav() {
-  document.querySelectorAll(".step-btn").forEach((btn) => {
-    const step = Number(btn.dataset.step);
-    const locked = step > maxUnlockedStep;
-    btn.disabled = locked;
-    btn.classList.toggle("active", step === currentStep);
-    btn.classList.toggle("done", step < currentStep && step <= maxUnlockedStep);
-    btn.classList.toggle("locked", locked);
+
+function hienThanhTienDoPortal(tongSo) {
+  const wrap = $("progressWrapPortal");
+  if (!wrap) return;
+  wrap.hidden = false;
+  $("progressBarFillPortal").style.width = "0%";
+  $("progressLabelPortal").textContent = `0 / ${tongSo} (0%)`;
+  $("portalUploadStatus").textContent = "Đang chuẩn bị upload...";
+}
+
+function capNhatThanhTienDoPortal({ daXong, tongSo, maNV, trangThai }) {
+  const phanTram = tongSo ? Math.round((daXong / tongSo) * 100) : 0;
+  if ($("progressBarFillPortal")) $("progressBarFillPortal").style.width = `${phanTram}%`;
+  if ($("progressLabelPortal")) $("progressLabelPortal").textContent = `${daXong} / ${tongSo} (${phanTram}%)`;
+  if (maNV && $("portalUploadStatus")) {
+    $("portalUploadStatus").textContent =
+      trangThai === "uploading"
+        ? `Đang tạo PDF & upload cho ${maNV}...`
+        : `Đã xử lý: ${maNV}`;
+  }
+}
+
+function anThanhTienDoPortal() {
+  const wrap = $("progressWrapPortal");
+  if (!wrap) return;
+  wrap.hidden = true;
+}
+
+if (window.api && window.api.onUploadPortalTienDo) {
+  window.api.onUploadPortalTienDo((data) => {
+    capNhatThanhTienDoPortal(data);
   });
 }
 
-function goToStep(step) {
-  if (step > maxUnlockedStep) return;
-  currentStep = step;
-  document.querySelectorAll(".step-panel").forEach((panel) => {
-    panel.hidden = Number(panel.dataset.stepPanel) !== step;
+async function uploadPortalChoDanhSach(indexes) {
+  if (!indexes.length || portalJobInFlight || pdfJobInFlight || emailJobInFlight) return;
+
+  const supabaseUrl = $("portalSupabaseUrl")?.value.trim();
+  const serviceRoleKey = $("portalServiceRoleKey")?.value.trim();
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    showToast("Vui lòng nhập đầy đủ Supabase URL và Service Role Key.", "warning");
+    return;
+  }
+
+  portalJobInFlight = true;
+  capNhatTrangThaiNutXuat();
+  indexes.forEach((i) => {
+    portalHistory.set(i, { status: "uploading" });
   });
-  if (step === 3 && validationPanelDirty) renderValidationPanel();
-  if (step === 4 && emailHistoryDirty) renderEmailHistoryTable();
-  updateStepsNav();
+  renderPortalEmployeeTable();
+  hienThanhTienDoPortal(indexes.length);
+
+  try {
+    const ketQua = await window.api.uploadToPortal({
+      supabaseUrl,
+      serviceRoleKey,
+      selectedIndexes: indexes,
+      tenCongTy: $("tenCongTy").value,
+      thangNam: $("thangNam").value,
+      danhSachNhanVien,
+    });
+
+    if (ketQua && ketQua.ok) {
+      const results = ketQua.results || [];
+      const resMap = new Map();
+      results.forEach((r) => {
+        if (r.maNV) resMap.set(String(r.maNV).trim().toUpperCase(), r);
+      });
+      indexes.forEach((i) => {
+        const nv = danhSachNhanVien[i];
+        const maNV = String(nv.maNV || nv.maNhanVien || "").trim().toUpperCase();
+        const r = resMap.get(maNV);
+        if (r) {
+          portalHistory.set(i, {
+            status: r.success ? "uploaded" : "error",
+            error: r.error || "",
+            time: new Date(),
+          });
+        }
+      });
+
+      const thanhCong = results.filter((r) => r.success).length;
+      const thatBai = results.filter((r) => !r.success).length;
+
+      if (thatBai === 0) {
+        showToast(`✓ Đã upload thành công ${thanhCong} phiếu lương lên Portal!`, "success");
+        if ($("portalUploadStatus")) $("portalUploadStatus").textContent = `✓ Upload hoàn tất: ${thanhCong} thành công.`;
+        setTimeout(anThanhTienDoPortal, 3000);
+      } else {
+        const errorList = results.filter((r) => !r.success);
+        const firstErr = errorList[0]?.error || "Lỗi không xác định";
+        const fullErr = errorList.map((r) => `${r.maNV || "NV"}: ${r.error}`).join("; ");
+        showToast(`Upload: ${thanhCong} thành công, ${thatBai} lỗi. Lỗi: ${firstErr}`, "error", 8000);
+        if ($("portalUploadStatus")) $("portalUploadStatus").textContent = `❌ Hoàn tất: ${thanhCong} thành công, ${thatBai} lỗi.\nChi tiết: ${fullErr}`;
+      }
+    } else {
+      const errMsg = (ketQua && (ketQua.error || ketQua.message)) || "Lỗi không xác định";
+      indexes.forEach((i) => {
+        if (portalHistory.get(i)?.status === "uploading") {
+          portalHistory.set(i, {
+            status: "error",
+            error: errMsg,
+            time: new Date(),
+          });
+        }
+      });
+      showToast(`Upload thất bại: ${errMsg}`, "error", 8000);
+      if ($("portalUploadStatus")) $("portalUploadStatus").textContent = `❌ Lỗi: ${errMsg}`;
+    }
+  } catch (err) {
+    indexes.forEach((i) => {
+      if (portalHistory.get(i)?.status === "uploading") {
+        portalHistory.set(i, {
+          status: "error",
+          error: err.message || String(err),
+          time: new Date(),
+        });
+      }
+    });
+    showToast(`Lỗi upload: ${err.message || err}`, "error", 8000);
+    if ($("portalUploadStatus")) $("portalUploadStatus").textContent = `❌ Lỗi: ${err.message || err}`;
+  } finally {
+    portalJobInFlight = false;
+    capNhatTrangThaiNutXuat();
+    renderPortalEmployeeTable();
+  }
 }
 
-document.querySelectorAll(".step-btn").forEach((btn) => {
-  btn.addEventListener("click", () => goToStep(Number(btn.dataset.step)));
+$("btnUploadPortalChon")?.addEventListener("click", async () => {
+  const indexes = [...selectedIndexes].sort((a, b) => a - b);
+  if (!indexes.length) return;
+  const xacNhan = await showConfirmModal({
+    title: "Xác nhận Upload Portal",
+    message: `Upload phiếu lương của ${indexes.length} nhân viên đã chọn lên Portal?`,
+    confirmLabel: "Upload",
+  });
+  if (!xacNhan) return;
+  await uploadPortalChoDanhSach(indexes);
 });
+
+$("btnUploadPortalTatCa")?.addEventListener("click", async () => {
+  if (!danhSachNhanVien.length) return;
+  const indexes = danhSachNhanVien.map((_, i) => i);
+  const xacNhan = await showConfirmModal({
+    title: "Xác nhận Upload Portal",
+    message: `Upload phiếu lương của toàn bộ ${indexes.length} nhân viên lên Portal?`,
+    confirmLabel: "Upload tất cả",
+  });
+  if (!xacNhan) return;
+  await uploadPortalChoDanhSach(indexes);
+});
+
+// ============================================================
+// QUẢN LÝ PHIẾU LƯƠNG TRÊN PORTAL (SUPABASE)
+// ============================================================
+let managePayslips = [];
+const selectedManageIds = new Set();
+let manageSearchQuery = "";
+let manageMonthFilter = "all";
+let manageBoPhanFilter = "";
+let manageStatusFilter = "all";
+let isLoadingManage = false;
+const manageSortState = { key: "uploaded_at", dir: -1 };
+
+function layThongTinSupabase() {
+  const url = ($("portalSupabaseUrl")?.value || "").trim();
+  const key = ($("portalServiceRoleKey")?.value || "").trim();
+  return { supabaseUrl: url, serviceRoleKey: key };
+}
+
+async function taiDanhSachManage(thangNam = null) {
+  const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+  const noConfigBox = $("manageNoConfigWarning");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    if (noConfigBox) {
+      noConfigBox.hidden = false;
+      noConfigBox.style.display = "block";
+    }
+    managePayslips = [];
+    renderManageTable();
+    return;
+  }
+
+  if (noConfigBox) {
+    noConfigBox.hidden = true;
+    noConfigBox.style.display = "none";
+  }
+
+  const loadingEl = $("manageLoading");
+  const emptyEl = $("manageEmpty");
+  if (loadingEl) loadingEl.style.display = "block";
+  if (emptyEl) emptyEl.style.display = "none";
+  isLoadingManage = true;
+
+  try {
+    const ketQua = await window.api.layDanhSachPhieuLuongPortal({
+      supabaseUrl,
+      serviceRoleKey,
+      thangNam: thangNam && thangNam !== "all" ? thangNam : null,
+    });
+
+    if (ketQua && ketQua.ok) {
+      managePayslips = ketQua.data || [];
+      capNhatDropdownThangManage();
+      capNhatDropdownBoPhanManage();
+      renderManageTable();
+    } else {
+      showToast(`Không thể tải dữ liệu: ${(ketQua && ketQua.error) || "Lỗi không xác định"}`, "error");
+      managePayslips = [];
+      renderManageTable();
+    }
+  } catch (err) {
+    showToast(`Lỗi kết nối Supabase: ${err.message || err}`, "error");
+    managePayslips = [];
+    renderManageTable();
+  } finally {
+    isLoadingManage = false;
+    if (loadingEl) loadingEl.style.display = "none";
+  }
+}
+
+function capNhatDropdownThangManage() {
+  const select = $("locThangManage");
+  if (!select) return;
+  const currentVal = select.value || "all";
+  const months = [...new Set(managePayslips.map((p) => p.thang_nam).filter(Boolean))].sort().reverse();
+
+  let html = '<option value="all">Tất cả các kỳ lương</option>';
+  months.forEach((m) => {
+    html += `<option value="${m}">Tháng ${m}</option>`;
+  });
+  select.innerHTML = html;
+  if (months.includes(currentVal) || currentVal === "all") {
+    select.value = currentVal;
+    manageMonthFilter = currentVal;
+  } else {
+    select.value = "all";
+    manageMonthFilter = "all";
+  }
+}
+
+function capNhatDropdownBoPhanManage() {
+  const select = $("locBoPhanManage");
+  if (!select) return;
+  const currentVal = select.value || "";
+  const boPhans = [...new Set(managePayslips.map((p) => p.bo_phan).filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+
+  let html = '<option value="">Tất cả bộ phận</option>';
+  boPhans.forEach((bp) => {
+    html += `<option value="${bp}">${bp}</option>`;
+  });
+  select.innerHTML = html;
+  if (boPhans.includes(currentVal) || currentVal === "") {
+    select.value = currentVal;
+    manageBoPhanFilter = currentVal;
+  } else {
+    select.value = "";
+    manageBoPhanFilter = "";
+  }
+}
+
+function getFilteredManagePayslips() {
+  let list = managePayslips.filter((p) => {
+    if (manageMonthFilter !== "all" && p.thang_nam !== manageMonthFilter) return false;
+    if (manageBoPhanFilter && p.bo_phan !== manageBoPhanFilter) return false;
+    if (manageStatusFilter !== "all") {
+      const isRevoked = p.status === "revoked";
+      if (manageStatusFilter === "revoked" && !isRevoked) return false;
+      if (manageStatusFilter === "active" && isRevoked) return false;
+    }
+    if (manageSearchQuery) {
+      const q = boDauTiengViet(manageSearchQuery.toLowerCase());
+      const text = boDauTiengViet(`${p.ma_nv || ""} ${p.ho_ten || ""} ${p.bo_phan || ""} ${p.khoi || ""} ${p.co_so || ""}`).toLowerCase();
+      if (!text.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (manageSortState.key) {
+    const { key, dir } = manageSortState;
+    list.sort((a, b) => {
+      if (key === "stt") {
+        return 0;
+      }
+      if (key === "uploaded_at") {
+        const ta = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
+        const tb = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
+        return (ta - tb) * dir;
+      }
+      if (key === "status") {
+        const sa = a.status || "active";
+        const sb = b.status || "active";
+        return sa.localeCompare(sb) * dir;
+      }
+      const va = String(a[key] || "");
+      const vb = String(b[key] || "");
+      return va.localeCompare(vb, "vi") * dir;
+    });
+  }
+
+  return list;
+}
+
+function formatNgayGioVi(isoStr) {
+  if (!isoStr) return "-";
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return isoStr;
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return isoStr;
+  }
+}
+
+function renderManageTable() {
+  const tbody = $("bangManageBody");
+  const emptyEl = $("manageEmpty");
+  const totalTong = $("soLuongManageTong");
+  const totalTongLabel = $("soLuongManageTongLabel");
+  const totalActive = $("soLuongManageActive");
+  const totalRevoked = $("soLuongManageRevoked");
+  const totalSelected = $("soLuongManageSelected");
+  const lblSelected = $("lblSoLuongManageChon");
+
+  const filtered = getFilteredManagePayslips();
+
+  // Cập nhật mũi tên sắp xếp trên thead
+  const thead = $("bangManageTable")?.querySelector("thead");
+  if (thead) {
+    thead.querySelectorAll("th.sortable").forEach((th) => {
+      const arrow = th.querySelector(".sort-arrow");
+      if (arrow) {
+        arrow.textContent = manageSortState.key === th.dataset.sortKey ? (manageSortState.dir === 1 ? "▲" : "▼") : "";
+      }
+    });
+  }
+
+  // Đồng bộ giá trị dropdown sắp xếp nhanh
+  const selectSort = $("locSapXepManage");
+  if (selectSort) {
+    const curVal = `${manageSortState.key}_${manageSortState.dir === 1 ? "asc" : "desc"}`;
+    if ([...selectSort.options].some((opt) => opt.value === curVal)) {
+      selectSort.value = curVal;
+    }
+  }
+
+  // Cập nhật số liệu KPI
+  const countActive = managePayslips.filter((p) => p.status !== "revoked").length;
+  const countRevoked = managePayslips.filter((p) => p.status === "revoked").length;
+
+  if (totalTong) totalTong.textContent = managePayslips.length;
+  if (totalTongLabel) totalTongLabel.textContent = `${managePayslips.length} phiếu`;
+  if (totalActive) totalActive.textContent = countActive;
+  if (totalRevoked) totalRevoked.textContent = countRevoked;
+  if (totalSelected) totalSelected.textContent = selectedManageIds.size;
+  if (lblSelected) lblSelected.textContent = selectedManageIds.size;
+
+  const btnThuHoi = $("btnThuHoiChon");
+  const btnKhoiPhuc = $("btnKhoiPhucChon");
+  const btnXoa = $("btnXoaChonManage");
+  const hasSelected = selectedManageIds.size > 0;
+  if (btnThuHoi) btnThuHoi.disabled = !hasSelected;
+  if (btnKhoiPhuc) btnKhoiPhuc.disabled = !hasSelected;
+  if (btnXoa) btnXoa.disabled = !hasSelected;
+
+  if (!tbody) return;
+
+  if (!filtered.length) {
+    tbody.innerHTML = "";
+    if (emptyEl && !isLoadingManage) {
+      emptyEl.style.display = "block";
+      const emptyMsg = $("manageEmptyMsg");
+      if (emptyMsg) {
+        emptyMsg.textContent = managePayslips.length === 0
+          ? "Chưa có phiếu lương nào trên Supabase. Hãy upload phiếu lương từ tab 'Upload lên Web'."
+          : "Không có phiếu lương nào khớp với bộ lọc tìm kiếm hiện tại.";
+      }
+    }
+    const chkAll = $("chkManageChonTatCa");
+    if (chkAll) {
+      chkAll.checked = false;
+      chkAll.indeterminate = false;
+    }
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = "none";
+
+  let html = "";
+  filtered.forEach((p, idx) => {
+    const isChecked = selectedManageIds.has(p.id);
+    const isRevoked = p.status === "revoked";
+    const statusBadge = isRevoked
+      ? '<span class="badge error">🔴 Đã thu hồi</span>'
+      : '<span class="badge ok">🟢 Đang phát hành</span>';
+
+    const actionButtons = `
+      <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
+        <button type="button" class="table-btn-mini primary btn-xem-pdf-manage" data-path="${p.pdf_path || ""}" data-manv="${p.ma_nv}" title="Xem trước file PDF online">
+          👁️ Xem PDF
+        </button>
+        ${
+          isRevoked
+            ? `<button type="button" class="table-btn-mini primary btn-khoi-phuc-mot" data-id="${p.id}" data-manv="${p.ma_nv}" title="Phát hành lại phiếu này để nhân viên xem được trên Web">
+                🔄 Phát hành
+              </button>`
+            : `<button type="button" class="table-btn-mini warning btn-thu-hoi-mot" data-id="${p.id}" data-manv="${p.ma_nv}" title="Thu hồi phiếu (tạm ẩn khỏi Portal nhân viên)">
+                🚫 Thu hồi
+              </button>`
+        }
+        <button type="button" class="table-btn-mini danger btn-xoa-mot" data-id="${p.id}" data-path="${p.pdf_path || ""}" data-manv="${p.ma_nv}" title="Xóa vĩnh viễn phiếu lương này">
+          🗑️ Xóa
+        </button>
+      </div>
+    `;
+
+    html += `
+      <tr class="${isChecked ? "row-selected" : ""} ${isRevoked ? "row-revoked" : ""}">
+        <td style="text-align:center;">
+          <input type="checkbox" class="chk-manage-item" data-id="${p.id}" ${isChecked ? "checked" : ""} />
+        </td>
+        <td style="text-align:center;color:var(--text-muted);font-weight:600">${idx + 1}</td>
+        <td><strong style="color:var(--primary-dark)">${p.ma_nv}</strong></td>
+        <td><strong>${p.ho_ten || p.ma_nv}</strong></td>
+        <td>${p.bo_phan || "-"}</td>
+        <td style="text-align:center;"><span class="code-pill">${p.thang_nam}</span></td>
+        <td style="font-size:12px;color:var(--text-muted)">${formatNgayGioVi(p.uploaded_at)}</td>
+        <td style="text-align:center;">${statusBadge}</td>
+        <td style="text-align:center;">${actionButtons}</td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+
+  // Cập nhật trạng thái checkbox chọn tất cả
+  const chkAll = $("chkManageChonTatCa");
+  if (chkAll) {
+    const allFilteredChecked = filtered.every((p) => selectedManageIds.has(p.id));
+    const someFilteredChecked = filtered.some((p) => selectedManageIds.has(p.id));
+    chkAll.checked = allFilteredChecked;
+    chkAll.indeterminate = !allFilteredChecked && someFilteredChecked;
+  }
+}
+
+const SQL_MIGRATION_TEXT = `ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active';
+ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS revoked_at timestamptz;`;
+
+function hienModalSqlMigration() {
+  const modal = $("sqlMigrationModal");
+  if (!modal) return;
+  modal.hidden = false;
+  modal.style.display = "flex";
+}
+
+function anModalSqlMigration() {
+  const modal = $("sqlMigrationModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.style.display = "none";
+}
+
+function wireManageEvents() {
+  // Nút mở hướng dẫn SQL Migration
+  $("btnHuongDanSqlSupabase")?.addEventListener("click", () => {
+    hienModalSqlMigration();
+  });
+
+  $("btnDongSqlModal")?.addEventListener("click", () => {
+    anModalSqlMigration();
+  });
+
+  $("btnCopySqlMigration")?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(SQL_MIGRATION_TEXT);
+      showToast("✓ Đã copy câu lệnh SQL vào clipboard!", "success");
+    } catch {
+      showToast("Vui lòng bôi đen và copy đoạn mã SQL trong khung.", "warning");
+    }
+  });
+
+  $("btnMoSupabaseSqlEditor")?.addEventListener("click", async () => {
+    const { supabaseUrl } = layThongTinSupabase();
+    let sqlEditorUrl = "https://supabase.com/dashboard";
+    if (supabaseUrl) {
+      const match = supabaseUrl.match(/https:\/\/([a-z0-9_-]+)\.supabase\.co/i);
+      if (match && match[1]) {
+        sqlEditorUrl = `https://supabase.com/dashboard/project/${match[1]}/sql/new`;
+      }
+    }
+    await window.api.moLinkNgoai(sqlEditorUrl);
+  });
+
+  // Nút Làm mới
+  $("btnLamMoiManage")?.addEventListener("click", () => {
+    taiDanhSachManage($("locThangManage")?.value);
+  });
+
+  // Sắp xếp khi click tiêu đề cột bảng Manage
+  $("bangManageTable")?.querySelector("thead")?.addEventListener("click", (e) => {
+    const th = e.target.closest("th.sortable");
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (manageSortState.key === key) {
+      manageSortState.dir *= -1;
+    } else {
+      manageSortState.key = key;
+      manageSortState.dir = (key === "uploaded_at" || key === "thang_nam") ? -1 : 1;
+    }
+    renderManageTable();
+  });
+
+  // Nút Đi đến cài đặt nếu chưa có keys
+  $("btnManageDiDenCaiDat")?.addEventListener("click", () => {
+    switchTab("settings");
+  });
+
+  // Tìm kiếm
+  let searchTimer = null;
+  $("oTimKiemManage")?.addEventListener("input", (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      manageSearchQuery = e.target.value.trim();
+      renderManageTable();
+    }, 200);
+  });
+
+  // Lọc theo kỳ tháng
+  $("locThangManage")?.addEventListener("change", (e) => {
+    manageMonthFilter = e.target.value;
+    renderManageTable();
+  });
+
+  // Lọc theo bộ phận
+  $("locBoPhanManage")?.addEventListener("change", (e) => {
+    manageBoPhanFilter = e.target.value;
+    renderManageTable();
+  });
+
+  // Lọc theo trạng thái
+  $("locTrangThaiManage")?.addEventListener("change", (e) => {
+    manageStatusFilter = e.target.value;
+    renderManageTable();
+  });
+
+  // Dropdown sắp xếp nhanh
+  $("locSapXepManage")?.addEventListener("change", (e) => {
+    const val = e.target.value;
+    const parts = val.split("_");
+    const dirStr = parts.pop();
+    const key = parts.join("_");
+    manageSortState.key = key;
+    manageSortState.dir = dirStr === "desc" ? -1 : 1;
+    renderManageTable();
+  });
+
+  // Nút Xóa lọc
+  $("btnResetLocManage")?.addEventListener("click", () => {
+    if ($("oTimKiemManage")) $("oTimKiemManage").value = "";
+    if ($("locThangManage")) $("locThangManage").value = "all";
+    if ($("locBoPhanManage")) $("locBoPhanManage").value = "";
+    if ($("locTrangThaiManage")) $("locTrangThaiManage").value = "all";
+    if ($("locSapXepManage")) $("locSapXepManage").value = "uploaded_at_desc";
+    manageSearchQuery = "";
+    manageMonthFilter = "all";
+    manageBoPhanFilter = "";
+    manageStatusFilter = "all";
+    manageSortState.key = "uploaded_at";
+    manageSortState.dir = -1;
+    renderManageTable();
+  });
+
+  // Chọn tất cả
+  $("chkManageChonTatCa")?.addEventListener("change", (e) => {
+    const checked = e.target.checked;
+    const filtered = getFilteredManagePayslips();
+    filtered.forEach((p) => {
+      if (checked) selectedManageIds.add(p.id);
+      else selectedManageIds.delete(p.id);
+    });
+    renderManageTable();
+  });
+
+  // Thao tác trên bảng (event delegation)
+  $("bangManageBody")?.addEventListener("click", async (e) => {
+    const target = e.target;
+
+    // Tick chọn checkbox dòng
+    if (target.matches(".chk-manage-item")) {
+      const id = target.dataset.id;
+      if (target.checked) selectedManageIds.add(id);
+      else selectedManageIds.delete(id);
+      renderManageTable();
+      return;
+    }
+
+    // Xem PDF online
+    const btnXem = target.closest(".btn-xem-pdf-manage");
+    if (btnXem) {
+      const path = btnXem.dataset.path;
+      if (!path) {
+        showToast("Phiếu này không có đường dẫn file PDF.", "warning");
+        return;
+      }
+      const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+      try {
+        btnXem.disabled = true;
+        const res = await window.api.laySignedUrlPhieuLuong({ supabaseUrl, serviceRoleKey, pdfPath: path });
+        if (res && res.ok && res.signedUrl) {
+          await window.api.moLinkNgoai(res.signedUrl);
+        } else {
+          showToast(`Không lấy được liên kết PDF: ${(res && res.error) || "Lỗi không xác định"}`, "error");
+        }
+      } catch (err) {
+        showToast(`Lỗi: ${err.message || err}`, "error");
+      } finally {
+        btnXem.disabled = false;
+      }
+      return;
+    }
+
+    // Thu hồi 1 phiếu
+    const btnThuHoi = target.closest(".btn-thu-hoi-mot");
+    if (btnThuHoi) {
+      const id = btnThuHoi.dataset.id;
+      const maNV = btnThuHoi.dataset.manv;
+      const xacNhan = await showConfirmModal({
+        title: "Xác nhận thu hồi phiếu lương",
+        message: `Thu hồi phiếu lương của nhân viên "${maNV}"?\n\nSau khi thu hồi, nhân viên sẽ không thể xem hoặc tải phiếu lương này trên Web Portal cho đến khi bạn phát hành lại.`,
+        confirmLabel: "Thu hồi phiếu",
+      });
+      if (!xacNhan) return;
+
+      const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+      try {
+        btnThuHoi.disabled = true;
+        const res = await window.api.thuHoiPhieuLuongPortal({ supabaseUrl, serviceRoleKey, ids: [id] });
+        if (res && res.ok) {
+          const item = managePayslips.find((p) => p.id === id);
+          if (item) {
+            item.status = "revoked";
+            item.revoked_at = new Date().toISOString();
+          }
+          showToast(`✓ Đã thu hồi phiếu lương của "${maNV}".`, "success");
+          renderManageTable();
+        } else {
+          const errMsg = (res && res.error) || "Lỗi không rõ";
+          showToast(`Thu hồi thất bại: ${errMsg}`, "error", 8000);
+          if (errMsg.includes("status") || errMsg.includes("revoked_at") || errMsg.includes("PGRST204") || errMsg.includes("SQL")) {
+            hienModalSqlMigration();
+          }
+        }
+      } catch (err) {
+        const errMsg = err.message || String(err);
+        showToast(`Lỗi: ${errMsg}`, "error", 8000);
+        if (errMsg.includes("status") || errMsg.includes("revoked_at") || errMsg.includes("PGRST204") || errMsg.includes("SQL")) {
+          hienModalSqlMigration();
+        }
+      } finally {
+        btnThuHoi.disabled = false;
+      }
+      return;
+    }
+
+    // Phát hành lại 1 phiếu
+    const btnKhoiPhuc = target.closest(".btn-khoi-phuc-mot");
+    if (btnKhoiPhuc) {
+      const id = btnKhoiPhuc.dataset.id;
+      const maNV = btnKhoiPhuc.dataset.manv;
+      const xacNhan = await showConfirmModal({
+        title: "Xác nhận phát hành lại",
+        message: `Phát hành lại phiếu lương của nhân viên "${maNV}" trên Web Portal?`,
+        confirmLabel: "Phát hành lại",
+      });
+      if (!xacNhan) return;
+
+      const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+      try {
+        btnKhoiPhuc.disabled = true;
+        const res = await window.api.khoiPhucPhieuLuongPortal({ supabaseUrl, serviceRoleKey, ids: [id] });
+        if (res && res.ok) {
+          const item = managePayslips.find((p) => p.id === id);
+          if (item) {
+            item.status = "active";
+            item.revoked_at = null;
+          }
+          showToast(`✓ Đã phát hành lại phiếu lương của "${maNV}".`, "success");
+          renderManageTable();
+        } else {
+          showToast(`Phát hành lại thất bại: ${(res && res.error) || "Lỗi không rõ"}`, "error");
+        }
+      } catch (err) {
+        showToast(`Lỗi: ${err.message || err}`, "error");
+      } finally {
+        btnKhoiPhuc.disabled = false;
+      }
+      return;
+    }
+
+    // Xóa 1 phiếu
+    const btnXoa = target.closest(".btn-xoa-mot");
+    if (btnXoa) {
+      const id = btnXoa.dataset.id;
+      const maNV = btnXoa.dataset.manv;
+      const pdfPath = btnXoa.dataset.path;
+      const xacNhan = await showConfirmModal({
+        title: "⚠️ Xác nhận xóa vĩnh viễn",
+        message: `Bạn có chắc chắn muốn xóa vĩnh viễn phiếu lương của nhân viên "${maNV}" khỏi Supabase Database và Storage?\n\nHành động này KHÔNG THỂ HOÀN TÁC.`,
+        confirmLabel: "Xóa vĩnh viễn",
+      });
+      if (!xacNhan) return;
+
+      const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+      try {
+        btnXoa.disabled = true;
+        const res = await window.api.xoaPhieuLuongPortal({
+          supabaseUrl,
+          serviceRoleKey,
+          items: [{ id, pdf_path: pdfPath }],
+        });
+        if (res && res.ok) {
+          managePayslips = managePayslips.filter((p) => p.id !== id);
+          selectedManageIds.delete(id);
+          showToast(`✓ Đã xóa vĩnh viễn phiếu lương của "${maNV}".`, "success");
+          renderManageTable();
+        } else {
+          showToast(`Xóa thất bại: ${(res && res.error) || "Lỗi không rõ"}`, "error");
+        }
+      } catch (err) {
+        showToast(`Lỗi: ${err.message || err}`, "error");
+      } finally {
+        btnXoa.disabled = false;
+      }
+      return;
+    }
+  });
+
+  // Tác vụ hàng loạt: Thu hồi các phiếu đã chọn
+  $("btnThuHoiChon")?.addEventListener("click", async () => {
+    const ids = Array.from(selectedManageIds);
+    if (!ids.length) return;
+    const xacNhan = await showConfirmModal({
+      title: "Xác nhận thu hồi hàng loạt",
+      message: `Thu hồi ${ids.length} phiếu lương đã chọn?\n\nNhân viên sẽ không xem được các phiếu này trên portal cho đến khi phát hành lại.`,
+      confirmLabel: "Thu hồi đã chọn",
+    });
+    if (!xacNhan) return;
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      $("btnThuHoiChon").disabled = true;
+      const res = await window.api.thuHoiPhieuLuongPortal({ supabaseUrl, serviceRoleKey, ids });
+      if (res && res.ok) {
+        managePayslips.forEach((p) => {
+          if (selectedManageIds.has(p.id)) {
+            p.status = "revoked";
+            p.revoked_at = new Date().toISOString();
+          }
+        });
+        selectedManageIds.clear();
+        showToast(`✓ Đã thu hồi ${ids.length} phiếu lương thành công.`, "success");
+        renderManageTable();
+      } else {
+        const errMsg = (res && res.error) || "Lỗi";
+        showToast(`Thu hồi thất bại: ${errMsg}`, "error", 8000);
+        if (errMsg.includes("status") || errMsg.includes("revoked_at") || errMsg.includes("PGRST204") || errMsg.includes("SQL")) {
+          hienModalSqlMigration();
+        }
+      }
+    } catch (err) {
+      const errMsg = err.message || String(err);
+      showToast(`Lỗi: ${errMsg}`, "error", 8000);
+      if (errMsg.includes("status") || errMsg.includes("revoked_at") || errMsg.includes("PGRST204") || errMsg.includes("SQL")) {
+        hienModalSqlMigration();
+      }
+    } finally {
+      if ($("btnThuHoiChon")) $("btnThuHoiChon").disabled = false;
+    }
+  });
+
+  // Tác vụ hàng loạt: Phát hành lại các phiếu đã chọn
+  $("btnKhoiPhucChon")?.addEventListener("click", async () => {
+    const ids = Array.from(selectedManageIds);
+    if (!ids.length) return;
+    const xacNhan = await showConfirmModal({
+      title: "Xác nhận phát hành lại hàng loạt",
+      message: `Phát hành lại ${ids.length} phiếu lương đã chọn lên Web Portal?`,
+      confirmLabel: "Phát hành lại",
+    });
+    if (!xacNhan) return;
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      $("btnKhoiPhucChon").disabled = true;
+      const res = await window.api.khoiPhucPhieuLuongPortal({ supabaseUrl, serviceRoleKey, ids });
+      if (res && res.ok) {
+        managePayslips.forEach((p) => {
+          if (selectedManageIds.has(p.id)) {
+            p.status = "active";
+            p.revoked_at = null;
+          }
+        });
+        selectedManageIds.clear();
+        showToast(`✓ Đã phát hành lại ${ids.length} phiếu lương thành công.`, "success");
+        renderManageTable();
+      } else {
+        showToast(`Phát hành lại thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+      }
+    } catch (err) {
+      showToast(`Lỗi: ${err.message || err}`, "error");
+    } finally {
+      if ($("btnKhoiPhucChon")) $("btnKhoiPhucChon").disabled = false;
+    }
+  });
+
+  // Tác vụ hàng loạt: Xóa vĩnh viễn các phiếu đã chọn
+  $("btnXoaChonManage")?.addEventListener("click", async () => {
+    const ids = Array.from(selectedManageIds);
+    if (!ids.length) return;
+    const xacNhan = await showConfirmModal({
+      title: "⚠️ Xác nhận xóa vĩnh viễn hàng loạt",
+      message: `Bạn có chắc chắn muốn xóa vĩnh viễn ${ids.length} phiếu lương đã chọn khỏi Supabase Database và Storage?\n\nHành động này KHÔNG THỂ HOÀN TÁC.`,
+      confirmLabel: "Xóa vĩnh viễn",
+    });
+    if (!xacNhan) return;
+
+    const items = managePayslips
+      .filter((p) => selectedManageIds.has(p.id))
+      .map((p) => ({ id: p.id, pdf_path: p.pdf_path }));
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      $("btnXoaChonManage").disabled = true;
+      const res = await window.api.xoaPhieuLuongPortal({ supabaseUrl, serviceRoleKey, items });
+      if (res && res.ok) {
+        const deletedSet = new Set(ids);
+        managePayslips = managePayslips.filter((p) => !deletedSet.has(p.id));
+        selectedManageIds.clear();
+        showToast(`✓ Đã xóa vĩnh viễn ${ids.length} phiếu lương thành công.`, "success");
+        renderManageTable();
+      } else {
+        showToast(`Xóa thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+      }
+    } catch (err) {
+      showToast(`Lỗi: ${err.message || err}`, "error");
+    } finally {
+      if ($("btnXoaChonManage")) $("btnXoaChonManage").disabled = false;
+    }
+  });
+
+  // Nút mở quản lý từ Topbar
+  $("btnMoQuanLy")?.addEventListener("click", () => {
+    switchTab("manage");
+  });
+
+  // Nút mở quản lý từ Home
+  $("btnHomeGoManage")?.addEventListener("click", () => {
+    switchTab("manage");
+  });
+}
+
+// ============================================================
+// ĐIỀU HƯỚNG TABS NAVBAR (4 CHỨC NĂNG CHÍNH + CÀI ĐẶT)
+// ============================================================
+let currentTab = "home";
+let previousTab = "preview";
+
+function switchTab(tabId) {
+  if (!tabId) return;
+
+  // Bắt buộc kiểm tra đồng thời: Phải nhập Tháng lương và nạp file Excel trước khi vào các tab làm việc của kỳ lương
+  if (tabId !== "home" && tabId !== "settings" && tabId !== "manage") {
+    const thangNamVal = $("thangNam")?.value?.trim();
+    if (!thangNamVal) {
+      showToast("⚠ Vui lòng nhập Tháng lương trước!", "warning");
+      switchTab("home");
+      const thangNamInput = $("thangNam");
+      thangNamInput?.focus();
+      thangNamInput?.classList.add("input-error");
+      return;
+    }
+    if (!danhSachNhanVien || danhSachNhanVien.length === 0) {
+      showToast("⚠ Vui lòng nạp file Excel bảng lương để tiếp tục!", "warning");
+      switchTab("home");
+      return;
+    }
+  }
+
+  if (currentTab !== "settings" && currentTab !== "manage") previousTab = currentTab;
+  currentTab = tabId;
+
+  // Cập nhật trạng thái active trên các nút Navbar
+  document.querySelectorAll(".nav-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.tab === tabId);
+  });
+
+  // Hiển thị trang được chọn, ẩn các trang khác
+  document.querySelectorAll(".tab-page").forEach((page) => {
+    page.hidden = page.dataset.page !== tabId;
+  });
+
+  // Kích hoạt render bổ sung theo từng trang
+  if (tabId === "preview") {
+    renderPreviewTable();
+  } else if (tabId === "validation") {
+    renderValidationPanel();
+  } else if (tabId === "pdf") {
+    renderPdfEmployeeTable();
+    syncAllCheckboxes();
+    capNhatTrangThaiNutXuat();
+  } else if (tabId === "email") {
+    renderDashboard();
+    renderEmailHistoryTable();
+    syncAllCheckboxes();
+    capNhatTrangThaiNutGuiEmail();
+  } else if (tabId === "portal") {
+    renderPortalEmployeeTable();
+    syncAllCheckboxes();
+    capNhatTrangThaiNutPortal();
+  } else if (tabId === "manage") {
+    taiDanhSachManage();
+  } else if (tabId === "settings") {
+    capNhatTrangThaiNutPortal();
+  }
+}
+
+// Lắng nghe sự kiện click trên thanh Navbar
+document.querySelectorAll(".nav-tab").forEach((tab) => {
+  tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+});
+
+// Nút Đổi file Excel
+$("btnDoiFileExcel")?.addEventListener("click", () => {
+  switchTab("home");
+});
+
+// Nút Mở cài đặt từ Topbar
+$("btnMoCaiDat")?.addEventListener("click", () => {
+  switchTab("settings");
+});
+
+// Nút Đóng cài đặt quay lại trang trước
+$("btnDongCaiDat")?.addEventListener("click", () => {
+  if (previousTab && previousTab !== "settings") {
+    switchTab(previousTab);
+  } else if (danhSachNhanVien.length > 0) {
+    switchTab("preview");
+  } else {
+    switchTab("home");
+  }
+});
+
+// Nút Lưu cấu hình thủ công trong tab Cài đặt
+$("btnLuuCauHinhThuCong")?.addEventListener("click", async () => {
+  if ($("chkGhiNhoCauHinh")) $("chkGhiNhoCauHinh").checked = true;
+  luuCauHinhNeuBat();
+  showToast("✓ Đã lưu cấu hình bảo mật thành công!", "success");
+});
+
+// Hàm tương thích ngược nếu còn lời gọi cũ
+function goToStep(step) {
+  const map = { 1: "home", 2: "preview", 3: "preview", 4: "email", 5: "portal" };
+  switchTab(map[step] || "home");
+}
+
+function updateStepsNav() {
+  // Tabs luôn mở tự do cho người dùng điều hướng
+}
 
 // ============================================================
 // CUỘN LÊN ĐẦU / XUỐNG CUỐI TRANG
@@ -1527,13 +3279,40 @@ window.addEventListener("resize", capNhatNutCuonTrang);
 // KHỞI TẠO
 // ============================================================
 wirePreviewTableEvents();
+wireValidationEvents();
+wirePdfTableEvents();
 wireEmailHistoryEvents();
+wirePortalTableEvents();
+wireManageEvents();
 capNhatTrangThaiNutXuat();
 renderEmailHistoryTable();
 renderDashboard();
-updateStepsNav();
+switchTab("home");
+if ($("mainNavbar")) $("mainNavbar").hidden = true;
+if ($("heroQuickStats")) $("heroQuickStats").hidden = true;
 khoiTaoCauHinhDaLuu();
 capNhatNutCuonTrang();
+
+// Sự kiện cho ô nhập Tháng lương bắt buộc
+const thangNamInput = $("thangNam");
+if (thangNamInput) {
+  thangNamInput.addEventListener("input", () => {
+    if (thangNamInput.value.trim()) {
+      thangNamInput.classList.remove("input-error");
+    }
+  });
+  thangNamInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (thangNamInput.value.trim()) {
+        xuLyDocFileExcel();
+      } else {
+        thangNamInput.classList.add("input-error");
+        showToast("⚠ Vui lòng nhập Tháng lương trước!", "warning");
+      }
+    }
+  });
+}
 
 // ============================================================
 // AUTO-UPDATE UI

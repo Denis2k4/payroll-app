@@ -1,263 +1,171 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:;"
-    />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HeheHR — Xuất Phiếu Lương</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <!-- HERO -->
-      <div class="hero">
-        <!-- Bên trái: Logo và Tên Ứng Dụng -->
-        <div style="display:flex;align-items:center;gap:18px">
-          <img src="template/Logo_PHG_1.png" alt="PHG Logo" class="app-logo" />
-          <div style="border-left:2px solid rgba(16,185,129,0.35);padding-left:16px">
-            <p class="eyebrow">HEHE</p>
-            <h1>Xuất Phiếu Lương &bull; Nội bộ</h1>
-            <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-              <span style="font-size:11px;background:rgba(16,185,129,0.15);color:#065f46;padding:3px 10px;border-radius:20px;font-weight:700">v1.0.1</span>
-              <span style="font-size:11px;background:rgba(34,211,238,0.15);color:#0E7490;padding:3px 10px;border-radius:20px;font-weight:700;display:inline-flex;align-items:center;gap:5px">
-                <span style="width:6px;height:6px;background:#10B981;border-radius:50%;display:inline-block"></span>
-                Hệ thống sẵn sàng
-              </span>
-            </div>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HeheHR — Quản Lý &amp; Xuất Phiếu Lương</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="desktop-app">
+    <!-- 1. TOPBAR: THANH TIÊU ĐỀ & THÔNG TIN CHUNG (50px CỐ ĐỊNH) -->
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <img src="template/Logo_PHG_1.png" alt="PHG" class="topbar-logo" />
+        <div class="topbar-brand">
+          <span class="topbar-app-name">HeheHR</span>
+        </div>
+      </div>
+
+      <!-- Thống kê nhanh khi đã nạp file Excel -->
+      <div class="topbar-stats" id="heroQuickStats" hidden>
+        <span id="tenFileExcel" hidden></span>
+        <div class="stat-chip">
+          <span class="chip-label">Tổng NV:</span>
+          <strong class="chip-val" id="soLuong">0</strong>
+        </div>
+        <div class="stat-chip accent">
+          <span class="chip-label">Đã chọn:</span>
+          <strong class="chip-val" id="soLuongDaChon">0</strong>
+        </div>
+      </div>
+
+      <!-- Tiện ích bên phải -->
+      <div class="topbar-right">
+        <button type="button" id="btnMoQuanLy" class="topbar-btn"
+          title="Quản lý phiếu lương đã tải lên Web (Thu hồi / Xóa)">
+          <span>🗂️</span> Quản lý phiếu lương
+        </button>
+        <button type="button" id="btnMoCaiDat" class="topbar-btn"
+          title="Cài đặt hệ thống (Gmail, Supabase, Tên công ty...)">
+          <span>⚙️</span> Cài đặt
+        </button>
+        <a href="#" id="linkTaiFileMau" class="topbar-btn" title="Tải file Excel mẫu">
+          <span>📄</span> File Excel mẫu
+        </a>
+        <button type="button" id="btnKiemTraCapNhat" class="topbar-btn" title="Kiểm tra phiên bản mới">
+          <span id="iconCheckUpdate">🔄</span>
+          <span id="textCheckUpdate">Cập nhật</span>
+        </button>
+        <div class="support-tag" title="Số điện thoại hỗ trợ nội bộ">
+          <span class="support-icon">📞</span>
+          <span class="support-text">Dũng IT: <strong>0327 599 761</strong></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- BANNER CẬP NHẬT TỰ ĐỘNG -->
+    <div class="update-banner" id="updateBanner" hidden style="display:none">
+      <div class="update-banner-content">
+        <span class="update-icon" id="updateIcon">✨</span>
+        <span class="update-message" id="updateMessage">Đã có phiên bản mới!</span>
+        <div class="update-progress-mini" id="updateProgressWrap" hidden style="display:none">
+          <div class="update-progress-track">
+            <div class="update-progress-fill" id="updateProgressFill"></div>
           </div>
         </div>
+      </div>
+      <div class="update-banner-actions">
+        <button type="button" class="update-btn" id="btnCaiDatCapNhat" hidden style="display:none">Cài đặt &amp; Khởi
+          động lại</button>
+        <button type="button" class="update-btn-dismiss" id="btnDismissUpdate" title="Đóng">✕</button>
+      </div>
+    </div>
 
-        <!-- Bên phải: Hỗ trợ kỹ thuật -->
-        <div class="hero-note">
-          <div class="note-title">📢 Hỗ trợ kỹ thuật</div>
-          <div class="note-body">
-            Sự cố/Góp ý liên hệ:
-            <strong>Dũng IT</strong> (<span style="font-weight:700">0327 599 761</span>)
-            <div style="margin-top:8px;border-top:1px dashed rgba(16,185,129,0.3);padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-              <a href="#" id="linkTaiFileMau" class="sample-link">📄 Tải file Excel cấu trúc mẫu</a>
-              <button type="button" id="btnKiemTraCapNhat" class="btn-check-update" title="Kiểm tra phiên bản mới">
-                <span id="iconCheckUpdate" class="btn-check-icon">🔄</span>
-                <span id="textCheckUpdate">Kiểm tra cập nhật</span>
-              </button>
-            </div>
+    <!-- 2. NAVBAR: THANH TAB ĐIỀU HƯỚNG CÁC CHỨC NĂNG (Hiện khi đã có dữ liệu) -->
+    <nav class="main-navbar" id="mainNavbar" hidden>
+      <div class="nav-tabs-group">
+        <button class="nav-tab active" data-tab="preview" type="button">
+          <span class="tab-icon">👁️</span>
+          <span class="tab-text">Xem trước</span>
+        </button>
+        <button class="nav-tab" data-tab="validation" type="button" id="tabNavValidation">
+          <span class="tab-icon">🔍</span>
+          <span class="tab-text">Kiểm tra dữ liệu</span>
+          <span class="tab-badge" id="navValidationBadge" hidden>0</span>
+        </button>
+        <button class="nav-tab" data-tab="pdf" type="button">
+          <span class="tab-icon">📄</span>
+          <span class="tab-text">Xuất PDF</span>
+        </button>
+        <button class="nav-tab" data-tab="email" type="button">
+          <span class="tab-icon">📧</span>
+          <span class="tab-text">Gửi Email</span>
+        </button>
+        <button class="nav-tab" data-tab="portal" type="button">
+          <span class="tab-icon">🌐</span>
+          <span class="tab-text">Upload lên Web</span>
+        </button>
+      </div>
+      <div class="nav-extra-actions">
+        <button class="btn-change-file" id="btnDoiFileExcel" type="button" title="Chọn file Excel kỳ lương khác">
+          📂 Đổi file Excel
+        </button>
+      </div>
+    </nav>
+
+    <!-- 3. MAIN WORKSPACE: KHU VỰC NỘI DUNG CUỘN ĐỘC LẬP -->
+    <main class="main-workspace">
+
+      <!-- ============================================================
+             TRANG 1: HOME / CHỌN FILE BAN ĐẦU
+             ============================================================ -->
+      <div class="tab-page active" data-page="home" id="pageHome">
+        <div class="home-container">
+          <div class="home-header">
+            <h2>Bắt đầu kỳ lương mới</h2>
+            <p>Nhập tháng lương và chọn file Excel để bắt đầu xem trước, xuất PDF, gửi email hoặc upload portal.</p>
+          </div>
+
+          <!-- Khối nhập tháng lương bắt buộc -->
+          <div class="home-month-box">
+            <label class="field" style="margin-bottom:0">
+              <span class="required-title">Tháng lương</span>
+              <div class="month-input-wrap">
+                <input id="thangNam" type="text" placeholder="VD: 06/2026" required autocomplete="off" />
+              </div>
+            </label>
+          </div>
+
+          <!-- Vùng kéo thả file lớn -->
+          <div class="dropzone-large" id="dropzoneArea">
+            <div class="dropzone-large-icon">📊</div>
+            <h3>Kéo thả file Excel vào đây</h3>
+            <p>Hỗ trợ định dạng bảng lương chuẩn (.xlsx, .xls)</p>
+            <button id="btnChonExcel" type="button" class="btn-primary-large">
+              📁 Chọn file Excel từ máy tính
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- BANNER CẬP NHẬT TỰ ĐỘNG (chỉ hiện khi có bản cập nhật mới) -->
-      <div class="update-banner" id="updateBanner" hidden style="display:none">
-        <div class="update-banner-content">
-          <span class="update-icon" id="updateIcon">✨</span>
-          <span class="update-message" id="updateMessage">Đã có phiên bản mới!</span>
-          <div class="update-progress-mini" id="updateProgressWrap" hidden style="display:none">
-            <div class="update-progress-track">
-              <div class="update-progress-fill" id="updateProgressFill"></div>
-            </div>
-          </div>
-        </div>
-        <div class="update-banner-actions">
-          <button type="button" class="update-btn" id="btnCaiDatCapNhat" hidden style="display:none">Cài đặt & Khởi động lại</button>
-          <button type="button" class="update-btn-dismiss" id="btnDismissUpdate" title="Đóng">✕</button>
-        </div>
-      </div>
-
-      <nav class="steps" id="stepsNav">
-        <button class="step-btn active" data-step="1" type="button">
-          <span class="step-num"><span class="step-icon"></span>Bước 1</span>
-          <span class="step-label">Đọc file Excel</span>
-        </button>
-        <button class="step-btn" data-step="2" type="button" disabled>
-          <span class="step-num"><span class="step-icon"></span>Bước 2</span>
-          <span class="step-label">Xem trước dữ liệu</span>
-        </button>
-        <button class="step-btn" data-step="3" type="button" disabled>
-          <span class="step-num"><span class="step-icon"></span>Bước 3</span>
-          <span class="step-label">Kiểm tra dữ liệu</span>
-        </button>
-        <button class="step-btn" data-step="4" type="button" disabled>
-          <span class="step-num"><span class="step-icon"></span>Bước 4</span>
-          <span class="step-label">Gửi Email</span>
-        </button>
-      </nav>
-
-      <div class="layout">
-        <aside class="panel control-panel">
-          <div class="panel-title">
-            Thiết lập
-            <span class="panel-subtitle">Dùng chung cho mọi bước</span>
-          </div>
-
-          <label class="remember-toggle" for="chkGhiNhoCauHinh">
-            <input type="checkbox" id="chkGhiNhoCauHinh" />
-            <span>Ghi nhớ cấu hình (tên công ty, logo, email...)</span>
-          </label>
-          <div class="remember-status" id="ghiNhoTrangThai" hidden></div>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>Tên công ty</span>
-              <input
-                id="tenCongTy"
-                type="text"
-                placeholder="VD: Công ty TNHH Tập Đoàn PHG"
-              />
-            </label>
-            <label class="field">
-              <span>Tháng lương</span>
-              <input id="thangNam" type="text" placeholder="VD: 06/2026" />
-            </label>
-          </div>
-
-          <div class="actions">
-            <button id="btnChonExcel" type="button">1. Chọn file Excel</button>
-          </div>
-          <div class="file-name" id="tenFileExcel">Chưa chọn file.</div>
-
-          <div class="logo-picker">
-            <div class="actions">
-              <button id="btnChonLogo" type="button">Chọn logo công ty</button>
-              <button id="btnXoaLogo" type="button" class="ghost-btn" hidden>
-                Xóa logo
-              </button>
-            </div>
-            <div class="file-name" id="tenFileLogo">
-              Đang dùng logo mặc định.
-            </div>
-            <div class="logo-preview" id="logoPreviewWrap" hidden>
-              <img id="logoPreviewImg" alt="Xem trước logo" />
-            </div>
-          </div>
-
-          <div class="summary-grid">
-            <div class="summary-card">
-              <span>Số nhân viên</span>
-              <strong id="soLuong">0</strong>
-            </div>
-            <div class="summary-card accent">
-              <span>Đã tích chọn</span>
-              <strong id="soLuongDaChon">0</strong>
-            </div>
-          </div>
-
-          <div class="note-section">
-            <div class="section-title">4. Xuất PDF</div>
-            <div class="actions">
-              <button id="btnChonThuMuc" type="button">Chọn thư mục lưu</button>
-            </div>
-            <div class="file-name" id="tenThuMuc">Chưa chọn thư mục lưu.</div>
-            <div class="actions">
-              <button id="btnXuatChon" type="button" disabled>
-                Xuất PDF (đã chọn)
-              </button>
-              <button id="btnXuatPdf" type="button" disabled>
-                Xuất PDF (tất cả)
-              </button>
-            </div>
-          </div>
-
-          <div class="progress-wrap" id="progressWrap" hidden>
-            <div class="progress-bar-track">
-              <div class="progress-bar-fill" id="progressBarFill"></div>
-            </div>
-            <div class="progress-label" id="progressLabel">0 / 0 (0%)</div>
-          </div>
-
-          <div class="note-section">
-            <div class="section-title">5. Gửi Email (Gmail)</div>
-            <div class="field-grid">
-              <label class="field">
-                <span>Email người gửi (Gmail)</span>
-                <input
-                  id="emailNguoiGui"
-                  type="email"
-                  placeholder="ten@gmail.com"
-                />
-              </label>
-              <label class="field">
-                <span>Mật khẩu ứng dụng Gmail</span>
-                <input
-                  id="emailMatKhauUngDung"
-                  type="password"
-                  placeholder="Mật khẩu ứng dụng (App Password)"
-                />
-              </label>
-            </div>
-            <label class="field">
-              <span>Tiêu đề email</span>
-              <input
-                id="emailTieuDe"
-                type="text"
-                placeholder="Phiếu lương tháng {{thangNam}}"
-              />
-            </label>
-            <label class="field">
-              <span>Nội dung email</span>
-              <textarea
-                id="emailNoiDung"
-                rows="14"
-                placeholder="Để trống sẽ sử dụng nội dung email mặc định..."
-              ></textarea>
-            </label>
-            <div class="actions">
-              <button id="btnGuiEmailChon" type="button" disabled>
-                Gửi email (đã chọn)
-              </button>
-              <button id="btnGuiEmailTatCa" type="button" disabled>
-                Gửi email (tất cả)
-              </button>
-            </div>
-            <div class="progress-wrap" id="progressWrapEmail" hidden>
-              <div class="progress-bar-track">
-                <div class="progress-bar-fill" id="progressBarFillEmail"></div>
-              </div>
-              <div class="progress-label" id="progressLabelEmail">
-                0 / 0 (0%)
-              </div>
-            </div>
-          </div>
-
-          <div class="status" id="trangThai">
-            Sẵn sàng. Hãy chọn file Excel để bắt đầu.
-          </div>
-        </aside>
-
-        <section class="panel preview-panel">
-          <!-- Bước 1 -->
-          <div class="step-panel" data-step-panel="1">
+      <!-- ============================================================
+             TRANG 2: XEM TRƯỚC DỮ LIỆU & KIỂM TRA TỰ ĐỘNG
+             ============================================================ -->
+      <div class="tab-page" data-page="preview" id="pagePreview" hidden>
+        <div class="panel page-panel">
+          <!-- Toolbar lọc dữ liệu -->
+          <div class="panel-header-row">
             <div class="panel-title">
-              Bước 1 &middot; Đọc file Excel
-              <span class="panel-subtitle">.xlsx / .xls</span>
+              Xem trước dữ liệu nhân viên
+              <span class="panel-subtitle" id="soLuongLocLabel">0 / 0 nhân viên</span>
             </div>
-            <p class="step-intro">
-              Bấm <strong>"Chọn file Excel"</strong> ở khung bên trái. Ứng dụng
-              sẽ tự kiểm tra định dạng file (.xlsx/.xls), kiểm tra dòng tiêu đề
-              đúng mẫu cột cố định, đọc dữ liệu theo vị trí cột, và hiển thị số
-              lượng nhân viên đọc được. Sau khi đọc xong, các bước Xem trước,
-              Kiểm tra dữ liệu và Xuất PDF sẽ được mở khóa.
-            </p>
           </div>
 
-          <!-- Bước 2 -->
-          <div class="step-panel" data-step-panel="2" hidden>
-            <div class="panel-title">
-              Bước 2 &middot; Xem trước dữ liệu
-              <span class="panel-subtitle" id="soLuongLocLabel"
-                >0 / 0 nhân viên</span
-              >
+          <div class="filter-bar">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input id="oTimKiem" type="text" placeholder="Tìm kiếm nhanh theo Mã NV hoặc Họ tên..." />
             </div>
-
-            <div class="filter-row">
-              <input
-                id="oTimKiem"
-                type="text"
-                placeholder="Tìm theo mã NV hoặc họ tên..."
-              />
+            <div class="filter-selects-group">
               <select id="locBoPhan">
                 <option value="">Tất cả bộ phận</option>
               </select>
@@ -267,103 +175,251 @@
               <select id="locCoSo">
                 <option value="">Tất cả cơ sở</option>
               </select>
-              <button class="ghost-btn" id="btnResetLoc" type="button">
-                Xóa lọc
+              <button class="ghost-btn" id="btnResetLoc" type="button">Xóa lọc</button>
+            </div>
+          </div>
+
+          <!-- Dải thẻ KPI thống kê số tiền -->
+          <div class="filter-summary-cards">
+            <div class="metric-card">
+              <span class="metric-label">Đang hiển thị</span>
+              <strong class="metric-val" id="soLuongLoc">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Tổng thu nhập</span>
+              <strong class="metric-val" id="tongThuNhapLoc">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Tổng khấu trừ</span>
+              <strong class="metric-val" id="tongKhauTruLoc">0</strong>
+            </div>
+            <div class="metric-card accent">
+              <span class="metric-label">Tổng thực nhận</span>
+              <strong class="metric-val" id="tongThucNhanLoc">0</strong>
+            </div>
+          </div>
+
+          <!-- Bảng dữ liệu preview -->
+          <div class="table-responsive-wrapper table-fixed-height">
+            <table class="preview-table">
+              <thead id="bangXemTruocHead"></thead>
+              <tbody id="bangXemTruocBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Phân trang preview -->
+          <div class="table-pagination" id="previewPagination" hidden>
+            <span id="previewPaginationLabel"></span>
+            <div class="table-pagination-actions">
+              <button class="ghost-btn" id="btnPreviewPrevious" type="button">← Trang trước</button>
+              <button class="ghost-btn" id="btnPreviewNext" type="button">Trang sau →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+             TRANG 2B: KIỂM TRA TÍNH HỢP LỆ DỮ LIỆU
+             ============================================================ -->
+      <div class="tab-page" data-page="validation" id="pageValidation" hidden>
+        <div class="panel page-panel">
+          <div class="panel-header-row">
+            <div>
+              <div class="panel-title">
+                Kiểm tra tính hợp lệ dữ liệu
+                <span class="panel-subtitle">Tự động phát hiện lỗi và cảnh báo định dạng file Excel</span>
+              </div>
+            </div>
+            <div>
+              <button type="button" class="secondary-btn" id="btnChuyenSangXemTruoc" style="padding:6px 14px;font-size:12px">
+                👁️ Xem trước bảng lương
+              </button>
+            </div>
+          </div>
+
+          <div id="cleanBanner" class="clean-banner" hidden>
+            ✓ Kiểm tra dữ liệu hoàn tất. Dữ liệu chuẩn xác, không phát hiện lỗi hoặc cảnh báo nào.
+          </div>
+
+          <!-- Dải thẻ KPI thống kê lỗi / cảnh báo -->
+          <div class="validation-summary">
+            <div class="summary-card">
+              <span>Tổng số dòng</span>
+              <strong id="vTongDong">0</strong>
+            </div>
+            <div class="summary-card error">
+              <span>Dòng có lỗi</span>
+              <strong id="vSoDongLoi">0</strong>
+            </div>
+            <div class="summary-card warning">
+              <span>Dòng có cảnh báo</span>
+              <strong id="vSoDongCanhBao">0</strong>
+            </div>
+            <div class="summary-card">
+              <span>Tổng lỗi / cảnh báo</span>
+              <strong id="vTongLoi">0 / 0</strong>
+            </div>
+          </div>
+
+          <!-- Thanh lọc danh sách lỗi / cảnh báo -->
+          <div class="panel-filter-row" style="margin-top:12px;margin-bottom:12px">
+            <div class="search-mini-wrap" style="flex:1.2;min-width:180px">
+              <input type="text" id="oTimKiemValidation" placeholder="🔍 Tìm theo mã NV, họ tên, nội dung lỗi..." class="input-mini" style="width:100%" />
+            </div>
+            <select id="locMucDoValidation" style="font-size:12px;padding:5px 8px">
+              <option value="all">Tất cả mức độ</option>
+              <option value="error">❌ Chỉ dòng có lỗi</option>
+              <option value="warning">⚠️ Chỉ dòng có cảnh báo</option>
+            </select>
+            <button type="button" class="ghost-btn" id="btnResetLocValidation" style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
+          </div>
+
+          <div class="table-responsive-wrapper table-fixed-height">
+            <table class="data-table" id="bangKiemTraTable">
+              <thead>
+                <tr>
+                  <th style="width:65px;text-align:center">STT</th>
+                  <th style="width:120px">Mã NV</th>
+                  <th style="width:200px">Họ và tên</th>
+                  <th>Chi tiết lỗi / cảnh báo phát hiện</th>
+                  <th style="width:120px;text-align:center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="bangKiemTraBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+             TRANG 3: XUẤT PDF (SPLIT LAYOUT)
+             ============================================================ -->
+      <div class="tab-page" data-page="pdf" id="pagePdf" hidden>
+        <div class="page-split-layout">
+          <!-- Cột trái: Bảng điều khiển xuất -->
+          <div class="panel control-side-panel">
+            <div class="panel-title">
+              Xuất file PDF phiếu lương
+              <span class="panel-subtitle">Tạo và lưu trữ các file PDF</span>
+            </div>
+
+            <div class="control-box">
+              <label class="control-box-title">Thư mục lưu PDF:</label>
+              <div class="folder-picker-row">
+                <button id="btnChonThuMuc" type="button" class="secondary-btn">📁 Chọn thư mục</button>
+                <div class="file-name-truncate" id="tenThuMuc">Chưa chọn thư mục.</div>
+              </div>
+              <div class="hint-text">Tên file tự động: <code>PL_[MãNV]_[HọTên].pdf</code></div>
+            </div>
+
+            <div class="control-box action-group-box">
+              <label class="control-box-title">Hành động xuất file:</label>
+              <button id="btnXuatChon" type="button" class="btn-action-outline" disabled>
+                Xuất PDF (chỉ nhân viên đã tick)
+              </button>
+              <button id="btnXuatPdf" type="button" class="btn-action-primary" disabled>
+                Xuất PDF (toàn bộ danh sách)
               </button>
             </div>
 
-            <div class="filter-summary">
-              <div class="summary-card">
-                <span>Đang hiển thị</span>
-                <strong id="soLuongLoc">0</strong>
+            <!-- Thanh tiến độ -->
+            <div class="progress-wrap" id="progressWrap" hidden>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
               </div>
-              <div class="summary-card">
-                <span>Tổng thu nhập (đang lọc)</span>
-                <strong id="tongThuNhapLoc">0</strong>
-              </div>
-              <div class="summary-card">
-                <span>Tổng khấu trừ (đang lọc)</span>
-                <strong id="tongKhauTruLoc">0</strong>
-              </div>
-              <div class="summary-card accent">
-                <span>Tổng thực nhận (đang lọc)</span>
-                <strong id="tongThucNhanLoc">0</strong>
-              </div>
-            </div>
-
-            <div class="table-wrap">
-              <table class="preview-table">
-                <thead id="bangXemTruocHead"></thead>
-                <tbody id="bangXemTruocBody"></tbody>
-              </table>
-            </div>
-            <div class="table-pagination" id="previewPagination" hidden>
-              <span id="previewPaginationLabel"></span>
-              <div class="table-pagination-actions">
-                <button class="ghost-btn" id="btnPreviewPrevious" type="button">
-                  ← Trước
-                </button>
-                <button class="ghost-btn" id="btnPreviewNext" type="button">
-                  Sau →
-                </button>
-              </div>
+              <div class="progress-label" id="progressLabel">0 / 0 (0%)</div>
             </div>
           </div>
 
-          <!-- Bước 3 -->
-          <div class="step-panel" data-step-panel="3" hidden>
-            <div class="panel-title">
-              Bước 3 &middot; Kiểm tra dữ liệu
-              <span class="panel-subtitle">Tự động chạy sau khi đọc file</span>
-            </div>
-
-            <div id="cleanBanner" class="clean-banner" hidden>
-              ✓ Kiểm tra dữ liệu hoàn tất.
-            </div>
-
-            <div class="validation-summary">
-              <div class="summary-card">
-                <span>Tổng số dòng</span>
-                <strong id="vTongDong">0</strong>
-              </div>
-              <div class="summary-card error">
-                <span>Dòng có lỗi</span>
-                <strong id="vSoDongLoi">0</strong>
-              </div>
-              <div class="summary-card warning">
-                <span>Dòng có cảnh báo</span>
-                <strong id="vSoDongCanhBao">0</strong>
-              </div>
-              <div class="summary-card">
-                <span>Tổng lỗi / cảnh báo</span>
-                <strong id="vTongLoi">0 / 0</strong>
+          <!-- Cột phải: Bảng nhân viên tích chọn xuất PDF -->
+          <div class="panel table-side-panel">
+            <div class="panel-header-row">
+              <div class="panel-title">
+                Danh sách nhân viên xuất PDF
+                <span class="panel-subtitle" id="soLuongLocPdfLabel">Tích chọn nhân viên cần xuất file</span>
               </div>
             </div>
 
-            <div class="table-wrap">
-              <table>
+            <!-- Thanh lọc & tìm kiếm PDF -->
+            <div class="panel-filter-row" style="margin-top:6px;margin-bottom:10px">
+              <div class="search-mini-wrap" style="flex:1.2;min-width:140px">
+                <input type="text" id="oTimKiemPdf" placeholder="🔍 Tìm mã NV, họ tên..." class="input-mini" style="width:100%" />
+              </div>
+              <select id="locBoPhanPdf" style="font-size:12px;padding:5px 8px">
+                <option value="">Tất cả bộ phận</option>
+              </select>
+              <select id="locTrangThaiPdf" style="font-size:12px;padding:5px 8px">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="chua_xuat">Chưa xuất PDF</option>
+                <option value="da_xuat">✓ Đã xuất PDF</option>
+              </select>
+              <button type="button" class="ghost-btn" id="btnResetLocPdf" style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
+            </div>
+
+            <div class="table-responsive-wrapper table-split-height">
+              <table class="data-table" id="bangPdfTable">
                 <thead>
                   <tr>
-                    <th>STT</th>
-                    <th>Mã NV</th>
-                    <th>Họ tên</th>
-                    <th>Chi tiết lỗi / cảnh báo</th>
+                    <th class="chk-col"><input type="checkbox" id="chkAllPdf" title="Chọn tất cả"></th>
+                    <th class="sortable" data-sort-key="stt" style="width:55px">STT<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="hoTen">Họ tên<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="boPhan">Bộ phận<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="thucNhan" style="text-align:right">Thực nhận<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="daXuat" style="width:115px;text-align:center">Trạng thái<span class="sort-arrow"></span></th>
+                    <th style="width:90px;text-align:center">Hành động</th>
                   </tr>
                 </thead>
-                <tbody id="bangKiemTraBody"></tbody>
+                <tbody id="bangNhanVienPdfBody"></tbody>
               </table>
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- Bước 4 -->
-          <div class="step-panel" data-step-panel="4" hidden>
+      <!-- ============================================================
+             TRANG 4: GỬI EMAIL (GMAIL) (SPLIT LAYOUT)
+             ============================================================ -->
+      <div class="tab-page" data-page="email" id="pageEmail" hidden>
+        <div class="page-split-layout">
+          <!-- Cột trái: Cấu hình gửi Gmail -->
+          <div class="panel control-side-panel">
             <div class="panel-title">
-              Bước 4 &middot; Gửi Email &amp; Lịch sử gửi
-              <span class="panel-subtitle" id="soLuongDaChonLabel"
-                >0 nhân viên đã chọn</span
-              >
+              Gửi Email Phiếu Lương
+              <span class="panel-subtitle">Gửi đính kèm PDF qua Gmail</span>
             </div>
 
+            <label class="field" style="margin-top:10px">
+              <span>Tiêu đề email</span>
+              <input id="emailTieuDe" type="text" placeholder="Phiếu lương tháng {{thangNam}} - {{hoTen}}" />
+            </label>
+
+            <label class="field" style="margin-top:8px">
+              <span>Nội dung email</span>
+              <textarea id="emailNoiDung" rows="7" placeholder="Để trống sẽ dùng nội dung chuẩn mặc định..."></textarea>
+            </label>
+
+            <div class="action-buttons-stack" style="margin-top:14px">
+              <button id="btnGuiEmailChon" type="button" class="btn-action-outline" disabled>
+                Gửi email (chỉ nhân viên đã tick)
+              </button>
+              <button id="btnGuiEmailTatCa" type="button" class="btn-action-primary" disabled>
+                Gửi email (toàn bộ danh sách)
+              </button>
+            </div>
+
+            <!-- Thanh tiến độ -->
+            <div class="progress-wrap" id="progressWrapEmail" hidden style="margin-top:14px">
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progressBarFillEmail"></div>
+              </div>
+              <div class="progress-label" id="progressLabelEmail">0 / 0 (0%)</div>
+            </div>
+          </div>
+
+          <!-- Cột phải: Thống kê & Danh sách nhân viên gửi email -->
+          <div class="panel table-side-panel">
+            <!-- Mini Dashboard 5 chỉ số -->
             <div class="dashboard-grid" id="dashboardGrid">
               <div class="dashboard-card total">
                 <span class="dashboard-value" id="dbTongNhanVien">0</span>
@@ -381,100 +437,489 @@
                 <span class="dashboard-value" id="dbLoi">0</span>
                 <span class="dashboard-label">❌ lỗi</span>
               </div>
-              <div class="dashboard-card pdf">
-                <span class="dashboard-value" id="dbPdfDaTao">0</span>
-                <span class="dashboard-label">📄 PDF đã tạo</span>
-              </div>
               <div class="dashboard-card percent">
                 <span class="dashboard-value" id="dbPhanTram">0%</span>
-                <span class="dashboard-label">hoàn tất gửi</span>
+                <span class="dashboard-label">hoàn tất</span>
               </div>
             </div>
             <div class="dashboard-bar-track">
               <div class="dashboard-bar-fill" id="dashboardBarFill"></div>
             </div>
 
-            <p class="step-intro">
-              Tick chọn nhân viên ở bảng "Xem trước dữ liệu" (bước 2) rồi dùng
-              nút <strong>"Gửi email (đã chọn)"</strong> hoặc
-              <strong>"Gửi email (tất cả)"</strong> ở khung bên trái (mục 5).
-              PDF phiếu lương được tạo mới ngay khi gửi, không cần xuất PDF
-              trước. Có thể gửi lại từng người bằng nút "Gửi email" ở cột Hành
-              động bên dưới. Bảng dưới đây là lịch sử gửi email.
-            </p>
-            <div class="table-wrap">
-              <table>
+            <div class="panel-header-row" style="margin-top:12px">
+              <div class="panel-title" style="font-size:14px">
+                Danh sách nhân viên gửi Email
+                <span class="panel-subtitle" id="soLuongDaChonLabel">0 nhân viên đã chọn</span>
+              </div>
+            </div>
+
+            <!-- Thanh lọc & tìm kiếm Email -->
+            <div class="panel-filter-row" style="margin-top:6px;margin-bottom:10px">
+              <div class="search-mini-wrap" style="flex:1.2;min-width:140px">
+                <input type="text" id="oTimKiemEmail" placeholder="🔍 Tìm mã NV, họ tên, email..." class="input-mini" style="width:100%" />
+              </div>
+              <select id="locBoPhanEmail" style="font-size:12px;padding:5px 8px">
+                <option value="">Tất cả bộ phận</option>
+              </select>
+              <select id="locTrangThaiEmail" style="font-size:12px;padding:5px 8px">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="sent">✓ Đã gửi</option>
+                <option value="pending">⏳ Chưa gửi</option>
+                <option value="error">❌ Lỗi gửi</option>
+                <option value="has_email">Có email</option>
+                <option value="no_email">Chưa có email</option>
+              </select>
+              <button type="button" class="ghost-btn" id="btnResetLocEmail" style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
+            </div>
+
+            <div class="table-responsive-wrapper table-email-height">
+              <table class="data-table" id="bangEmailTable">
                 <thead>
                   <tr>
-                    <th>Mã NV</th>
-                    <th>Họ tên</th>
-                    <th>Email</th>
-                    <th>Trạng thái gửi</th>
-                    <th>Thời gian</th>
-                    <th>Hành động</th>
+                    <th class="chk-col"><input type="checkbox" id="chkAllEmail" title="Chọn tất cả"></th>
+                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="hoTen">Họ tên<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="boPhan">Bộ phận<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="email">Email nhận<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="trangThai" style="width:115px;text-align:center">Trạng thái<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="time" style="width:115px">Thời gian<span class="sort-arrow"></span></th>
+                    <th style="width:85px;text-align:center">Hành động</th>
                   </tr>
                 </thead>
                 <tbody id="bangDaChonBody"></tbody>
               </table>
             </div>
+
             <div class="table-pagination" id="emailHistoryPagination" hidden>
               <span id="emailHistoryPaginationLabel"></span>
               <div class="table-pagination-actions">
-                <button class="ghost-btn" id="btnEmailHistoryPrevious" type="button">
-                  ← Trước
-                </button>
-                <button class="ghost-btn" id="btnEmailHistoryNext" type="button">
-                  Sau →
-                </button>
+                <button class="ghost-btn" id="btnEmailHistoryPrevious" type="button">← Trước</button>
+                <button class="ghost-btn" id="btnEmailHistoryNext" type="button">Sau →</button>
               </div>
             </div>
           </div>
-        </section>
-      </div>
-    </div>
-
-    <div class="modal-overlay" id="modalOverlay" hidden>
-      <div
-        class="modal-box"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modalTitle"
-      >
-        <div class="modal-title" id="modalTitle">Xác nhận</div>
-        <div class="modal-message" id="modalMessage"></div>
-        <div class="modal-actions">
-          <button type="button" class="ghost-btn" id="modalCancelBtn">
-            Hủy
-          </button>
-          <button type="button" id="modalConfirmBtn">Xác nhận</button>
         </div>
       </div>
-    </div>
-    <footer class="app-footer">
-      Xuất phiếu lương PHG v2.4.0 &middot; Nguyễn Đức Dũng
-    </footer>
-    <div class="page-scroll-controls" aria-label="Điều hướng trang">
-      <button
-        type="button"
-        class="page-scroll-btn"
-        id="btnScrollTop"
-        title="Lên đầu trang"
-        aria-label="Lên đầu trang"
-      >
-        ↑
-      </button>
-      <button
-        type="button"
-        class="page-scroll-btn"
-        id="btnScrollBottom"
-        title="Xuống cuối trang"
-        aria-label="Xuống cuối trang"
-      >
-        ↓
-      </button>
-    </div>
-    <div class="toast-container" id="toastContainer"></div>
 
-    <script src="renderer.js"></script>
-  </body>
+      <!-- ============================================================
+             TRANG 5: UPLOAD LÊN WEB PORTAL (SPLIT LAYOUT)
+             ============================================================ -->
+      <div class="tab-page" data-page="portal" id="pagePortal" hidden>
+        <div class="page-split-layout">
+          <!-- Cột trái: Thao tác Upload Portal -->
+          <div class="panel control-side-panel">
+            <div class="panel-title">
+              Phát Hành Web Portal
+              <span class="panel-subtitle">Upload phiếu lương lên Supabase</span>
+            </div>
+
+            <div class="action-buttons-stack" style="margin-top:16px">
+              <button id="btnUploadPortalChon" type="button" class="btn-action-outline" disabled>
+                Upload lên Web (chỉ nhân viên đã tick)
+              </button>
+              <button id="btnUploadPortalTatCa" type="button" class="btn-action-primary" disabled>
+                Upload lên Web (toàn bộ danh sách)
+              </button>
+            </div>
+
+            <!-- Thanh tiến độ upload -->
+            <div class="progress-wrap" id="progressWrapPortal" hidden style="margin-top:14px">
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progressBarFillPortal"></div>
+              </div>
+              <div class="progress-label" id="progressLabelPortal">0 / 0 (0%)</div>
+            </div>
+            <div class="file-name" id="portalUploadStatus" style="margin-top:8px;font-size:12px;font-weight:600"></div>
+
+            <div class="instruction-box" style="margin-top:16px">
+              <h4 style="margin:0 0 4px;color:var(--primary-dark);font-size:12.5px">💡 Cơ chế lưu trữ:</h4>
+              <p style="margin:0;font-size:11.5px;color:var(--text);line-height:1.5">
+                Mỗi tháng phát hành 1 lần. Nếu chỉnh sửa lại số liệu, chỉ cần bấm Upload lại để <strong>tự động ghi đè
+                  phiếu mới</strong>.
+              </p>
+            </div>
+          </div>
+
+          <!-- Cột phải: Bảng nhân viên upload portal -->
+          <div class="panel table-side-panel">
+            <div class="panel-header-row">
+              <div class="panel-title">
+                Danh sách nhân viên upload Portal
+                <span class="panel-subtitle" id="soLuongLocPortalLabel">Tích chọn nhân viên cần upload lên web</span>
+              </div>
+            </div>
+
+            <!-- Thanh lọc & tìm kiếm Portal -->
+            <div class="panel-filter-row" style="margin-top:6px;margin-bottom:10px">
+              <div class="search-mini-wrap" style="flex:1.2;min-width:140px">
+                <input type="text" id="oTimKiemPortal" placeholder="🔍 Tìm mã NV, họ tên..." class="input-mini" style="width:100%" />
+              </div>
+              <select id="locBoPhanPortal" style="font-size:12px;padding:5px 8px">
+                <option value="">Tất cả bộ phận</option>
+              </select>
+              <select id="locTrangThaiPortal" style="font-size:12px;padding:5px 8px">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="uploaded">✓ Đã upload</option>
+                <option value="pending">⏳ Chưa upload</option>
+                <option value="error">❌ Lỗi upload</option>
+              </select>
+              <button type="button" class="ghost-btn" id="btnResetLocPortal" style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
+            </div>
+
+            <div class="table-responsive-wrapper table-split-height">
+              <table class="data-table" id="bangPortalTable">
+                <thead>
+                  <tr>
+                    <th class="chk-col"><input type="checkbox" id="chkAllPortal" title="Chọn tất cả"></th>
+                    <th class="sortable" data-sort-key="stt" style="width:55px;text-align:center">STT<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="hoTen">Họ tên<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="boPhan">Bộ phận<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="portalAccount">Tài khoản Portal<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="trangThai" style="width:115px;text-align:center">Trạng thái<span class="sort-arrow"></span></th>
+                    <th style="width:90px;text-align:center">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="bangNhanVienPortalBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+             TRANG 5B: QUẢN LÝ PHIẾU LƯƠNG TRÊN WEB PORTAL (SUPABASE)
+             ============================================================ -->
+      <div class="tab-page" data-page="manage" id="pageManage" hidden>
+        <div class="panel page-panel">
+          <!-- Header hàng tiêu đề & tác vụ -->
+          <div class="panel-header-row">
+            <div>
+              <div class="panel-title" style="display:flex;align-items:center;gap:8px">
+                <span>🗂️ Quản lý phiếu lương trên Web</span>
+                <span class="panel-subtitle" id="soLuongManageTongLabel">0 phiếu</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="secondary-btn" id="btnLamMoiManage" type="button"
+                title="Tải lại danh sách mới nhất từ Supabase">
+                🔄 Làm mới dữ liệu
+              </button>
+            </div>
+          </div>
+
+          <!-- Cảnh báo nếu chưa cấu hình Supabase -->
+          <div id="manageNoConfigWarning" class="alert-box warning" hidden style="margin-bottom:14px;display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div>
+                <strong>⚠️ Chưa cấu hình Supabase:</strong> Vui lòng nhập Project URL và Service Role Key trong Cài đặt
+                để quản lý phiếu lương online.
+              </div>
+              <button type="button" class="btn-primary" id="btnManageDiDenCaiDat"
+                style="padding:6px 14px;font-size:12px">
+                ⚙️ Đi đến Cài đặt
+              </button>
+            </div>
+          </div>
+
+          <!-- Dải thẻ KPI thống kê -->
+          <div class="filter-summary-cards" style="grid-template-columns: repeat(4, 1fr); margin-bottom:14px">
+            <div class="metric-card">
+              <span class="metric-label">Tổng số phiếu</span>
+              <strong class="metric-val" id="soLuongManageTong">0</strong>
+            </div>
+            <div class="metric-card" style="border-left: 3px solid #10b981">
+              <span class="metric-label" style="color:#065f46">🟢 Đang phát hành</span>
+              <strong class="metric-val" id="soLuongManageActive" style="color:#10b981">0</strong>
+            </div>
+            <div class="metric-card" style="border-left: 3px solid #ef4444">
+              <span class="metric-label" style="color:#991b1b">🔴 Đã thu hồi</span>
+              <strong class="metric-val" id="soLuongManageRevoked" style="color:#ef4444">0</strong>
+            </div>
+            <div class="metric-card" style="border-left: 3px solid #6366f1">
+              <span class="metric-label">Đang chọn</span>
+              <strong class="metric-val" id="soLuongManageSelected" style="color:#6366f1">0</strong>
+            </div>
+          </div>
+
+          <!-- Toolbar lọc & tìm kiếm -->
+          <div class="filter-bar">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input id="oTimKiemManage" type="text" placeholder="Tìm kiếm theo Mã NV, Họ tên, Bộ phận..." />
+            </div>
+            <div class="filter-selects-group">
+              <select id="locThangManage">
+                <option value="all">Tất cả các kỳ lương</option>
+              </select>
+              <select id="locBoPhanManage">
+                <option value="">Tất cả bộ phận</option>
+              </select>
+              <select id="locTrangThaiManage">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="active">🟢 Đang phát hành</option>
+                <option value="revoked">🔴 Đã thu hồi</option>
+              </select>
+              <select id="locSapXepManage" title="Sắp xếp danh sách">
+                <option value="uploaded_at_desc">Mới tải lên nhất</option>
+                <option value="uploaded_at_asc">Cũ nhất trước</option>
+                <option value="ma_nv_asc">Mã NV (A → Z)</option>
+                <option value="ma_nv_desc">Mã NV (Z → A)</option>
+                <option value="ho_ten_asc">Họ tên (A → Z)</option>
+                <option value="ho_ten_desc">Họ tên (Z → A)</option>
+                <option value="bo_phan_asc">Bộ phận (A → Z)</option>
+                <option value="thang_nam_desc">Kỳ lương (Mới → Cũ)</option>
+              </select>
+              <button class="ghost-btn" id="btnResetLocManage" type="button">Xóa lọc</button>
+            </div>
+          </div>
+
+          <!-- Thanh hành động hàng loạt -->
+          <div class="manage-batch-actions" id="manageBatchBar">
+            <div style="font-size:12.5px;font-weight:600;color:var(--text)">
+              Đã chọn: <strong id="lblSoLuongManageChon">0</strong> phiếu
+            </div>
+            <div style="display:flex;gap:8px">
+              <button type="button" class="secondary-btn" id="btnThuHoiChon"
+                title="Thu hồi các phiếu đã chọn (nhân viên không xem được trên web)" disabled>
+                🚫 Thu hồi các phiếu đã chọn
+              </button>
+              <button type="button" class="secondary-btn" id="btnKhoiPhucChon" title="Phát hành lại các phiếu đã chọn"
+                disabled>
+                🔄 Phát hành lại
+              </button>
+              <button type="button" class="ghost-btn" id="btnXoaChonManage"
+                style="color:var(--danger);border-color:rgba(239,68,68,0.3)"
+                title="Xóa vĩnh viễn khỏi Database và Storage" disabled>
+                🗑️ Xóa vĩnh viễn
+              </button>
+            </div>
+          </div>
+
+          <!-- Bảng danh sách phiếu lương -->
+          <div class="table-container" style="max-height: 480px; overflow-y: auto; margin-top: 10px;">
+            <table class="data-table" id="bangManageTable">
+              <thead>
+                <tr>
+                  <th style="width: 44px; text-align: center;">
+                    <input type="checkbox" id="chkManageChonTatCa" title="Chọn / Bỏ chọn tất cả" />
+                  </th>
+                  <th class="sortable" data-sort-key="stt" style="width: 50px; text-align: center;">STT<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="ma_nv" style="width: 95px;">Mã NV<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="ho_ten" style="min-width: 140px;">Họ và tên<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="bo_phan" style="min-width: 130px;">Bộ phận<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="thang_nam" style="width: 95px; text-align: center;">Kỳ lương<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="uploaded_at" style="width: 140px;">Ngày tải lên<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="status" style="width: 125px; text-align: center;">Trạng thái<span class="sort-arrow"></span></th>
+                  <th style="min-width: 190px; text-align: center;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="bangManageBody">
+                <!-- Sẽ render bằng JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Loading state hoặc Empty state -->
+          <div id="manageLoading" style="text-align: center; padding: 36px 20px; display: none;">
+            <div style="font-size: 28px; animation: updateSpin 1.2s linear infinite; display: inline-block;">⏳</div>
+            <p style="margin-top: 8px; font-weight: 600; color: var(--text-muted);">Đang tải dữ liệu từ Supabase...</p>
+          </div>
+          <div id="manageEmpty" style="text-align: center; padding: 40px 20px; display: none;">
+            <div style="font-size: 36px;">📭</div>
+            <p style="margin-top: 8px; font-weight: 600; color: var(--text-muted);" id="manageEmptyMsg">
+              Không có phiếu lương nào trên hệ thống hoặc không khớp bộ lọc.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+             TRANG 6: CÀI ĐẶT HỆ THỐNG (CHỨA RIÊNG EMAIL & SUPABASE KEYS)
+             ============================================================ -->
+      <div class="tab-page" data-page="settings" id="pageSettings" hidden>
+        <div class="settings-container">
+          <div class="panel-header-row" style="margin-bottom:16px">
+            <div class="panel-title" style="font-size:18px">
+              ⚙️ Cài đặt hệ thống
+              <span class="panel-subtitle">Quản lý bảo mật tài khoản Gmail gửi &amp; Supabase Cloud Keys</span>
+            </div>
+            <button class="ghost-btn" id="btnDongCaiDat" type="button" title="Đóng cài đặt và quay lại màn hình trước">
+              ← Quay lại
+            </button>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Card 0: Thông tin & Thương hiệu Công ty -->
+            <div class="panel settings-card" style="grid-column: 1 / -1">
+              <div class="settings-card-header">
+                <div class="settings-card-icon">🏢</div>
+                <div>
+                  <h3 class="settings-card-title">Thông tin &amp; Thương hiệu Công ty</h3>
+                  <p class="settings-card-desc">Tên công ty và logo hiển thị trên tiêu đề phiếu lương nhân viên</p>
+                </div>
+              </div>
+
+              <div class="settings-card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+                  <div>
+                    <label class="field">
+                      <span>Tên công ty phát hành phiếu lương</span>
+                      <input id="tenCongTy" type="text" placeholder="VD: Công ty TNHH Tập Đoàn PHG" />
+                    </label>
+                    <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px">Tên công ty sẽ được in trang
+                      trọng tại tiêu đề các file PDF phiếu lương.</div>
+                  </div>
+
+                  <div>
+                    <label class="field">
+                      <span>Logo công ty (in góc trên phiếu lương)</span>
+                    </label>
+                    <div class="logo-setting-row" style="margin-top:4px">
+                      <div class="logo-actions">
+                        <button id="btnChonLogo" type="button" class="secondary-btn">📁 Chọn logo riêng (.png,
+                          .jpg)</button>
+                        <button id="btnXoaLogo" type="button" class="ghost-btn" hidden>Xóa logo</button>
+                      </div>
+                      <div class="file-name" id="tenFileLogo" style="margin-top:4px">Đang dùng logo mặc định.</div>
+                    </div>
+                    <div class="logo-preview-box" id="logoPreviewWrap" hidden style="margin-top:8px">
+                      <img id="logoPreviewImg" alt="Xem trước logo" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 1: Cấu hình Gmail -->
+            <div class="panel settings-card">
+              <div class="settings-card-header">
+                <div class="settings-card-icon">📧</div>
+                <div>
+                  <h3 class="settings-card-title">Tài khoản Gmail người gửi</h3>
+                  <p class="settings-card-desc">Sử dụng giao thức SMTP bảo mật của Google để gửi phiếu lương</p>
+                </div>
+              </div>
+
+              <div class="settings-card-body">
+                <label class="field">
+                  <span>Email Gmail gửi</span>
+                  <input id="emailNguoiGui" type="email" placeholder="VD: ketoan@gmail.com hoặc nhansu@phuhogia.com" />
+                </label>
+
+                <label class="field" style="margin-top:10px">
+                  <span>Mật khẩu ứng dụng (App Password 16 ký tự)</span>
+                  <input id="emailMatKhauUngDung" type="password" placeholder="xxxx xxxx xxxx xxxx" />
+                </label>
+
+                <div class="instruction-box" style="margin-top:14px">
+                  <h4 style="margin:0 0 6px;color:var(--primary-dark);font-size:12.5px">💡 Hướng dẫn tạo mật khẩu ứng
+                    dụng Gmail:</h4>
+                  <ol style="margin:0;padding-left:18px;font-size:11.5px;color:var(--text);line-height:1.6">
+                    <li>Đăng nhập tài khoản Google &gt; vào mục <strong>Bảo mật (Security)</strong>.</li>
+                    <li>Bật <strong>Xác minh 2 bước (2-Step Verification)</strong> nếu chưa bật.</li>
+                    <li>Vào mục <strong>Mật khẩu ứng dụng (App Passwords)</strong> &gt; Tạo mới tên "HeheHR".</li>
+                    <li>Copy mã 16 ký tự vừa tạo dán vào ô mật khẩu ứng dụng bên trên.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Cấu hình Supabase Portal -->
+            <div class="panel settings-card">
+              <div class="settings-card-header">
+                <div class="settings-card-icon">🌐</div>
+                <div>
+                  <h3 class="settings-card-title">Cấu hình Web Portal (Supabase Cloud)</h3>
+                  <p class="settings-card-desc">Lưu trữ database, file PDF và cấp quyền đăng nhập cho nhân viên</p>
+                </div>
+              </div>
+
+              <div class="settings-card-body">
+                <label class="field">
+                  <span>Supabase Project URL</span>
+                  <input id="portalSupabaseUrl" type="text" placeholder="https://xxxxxxxx.supabase.co" />
+                </label>
+
+                <label class="field" style="margin-top:10px">
+                  <span>Service Role Key (Secret)</span>
+                  <input id="portalServiceRoleKey" type="password" placeholder="service_role key bí mật..." />
+                </label>
+
+                <div class="instruction-box" style="margin-top:14px">
+                  <h4 style="margin:0 0 6px;color:var(--primary-dark);font-size:12.5px">💡 Hướng dẫn lấy URL &amp;
+                    Service Role Key:</h4>
+                  <ol style="margin:0;padding-left:18px;font-size:11.5px;color:var(--text);line-height:1.6">
+                    <li>Truy cập <a href="https://supabase.com/dashboard" target="_blank"
+                        style="color:var(--primary-2);text-decoration:underline;font-weight:600">Supabase Dashboard</a>
+                      &gt; chọn dự án của bạn.</li>
+                    <li>Vào <strong>Project Settings (Biểu tượng bánh răng)</strong> &gt; chọn mục <strong>API</strong>.
+                    </li>
+                    <li>Copy <strong>Project URL</strong> dán vào ô bên trên.</li>
+                    <li>Tại mục <strong>Project API keys</strong>, copy khóa <code>service_role (secret)</code> dán vào
+                      ô dưới.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thanh lưu và ghi nhớ cấu hình -->
+          <div class="panel settings-footer-panel" style="margin-top:16px">
+            <div class="settings-footer-left">
+              <label class="remember-toggle" for="chkGhiNhoCauHinh" style="font-size:12.5px">
+                <input type="checkbox" id="chkGhiNhoCauHinh" />
+                <span><strong>Ghi nhớ cấu hình trên máy này</strong> (tự động điền lại khi mở app)</span>
+              </label>
+              <div class="remember-status" id="ghiNhoTrangThai" hidden></div>
+            </div>
+            <div class="settings-footer-right">
+              <button type="button" id="btnLuuCauHinhThuCong" class="btn-action-primary"
+                style="width:auto;padding:8px 22px">
+                💾 Lưu cấu hình
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- 4. BOTTOM STATUSBAR: THANH TRẠNG THÁI CHUẨN DESKTOP (28px CỐ ĐỊNH) -->
+    <footer class="app-statusbar">
+      <div class="statusbar-left">
+        <span class="status-indicator"></span>
+        <span class="status-text" id="trangThai">Sẵn sàng. Hãy chọn file Excel để bắt đầu.</span>
+      </div>
+      <div class="statusbar-right">
+        <span>HeheHR</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- MODAL XÁC NHẬN -->
+  <div class="modal-overlay" id="modalOverlay" hidden style="display:none">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-title" id="modalTitle">Xác nhận</div>
+      <div class="modal-message" id="modalMessage"></div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="modalCancelBtn">Hủy</button>
+        <button type="button" id="modalConfirmBtn">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NÚT CUỘN TRANG (phụ trợ) -->
+  <div class="page-scroll-controls" aria-label="Điều hướng trang">
+    <button type="button" class="page-scroll-btn" id="btnScrollTop" title="Lên đầu trang"
+      aria-label="Lên đầu trang">↑</button>
+    <button type="button" class="page-scroll-btn" id="btnScrollBottom" title="Xuống cuối trang"
+      aria-label="Xuống cuối trang">↓</button>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="renderer.js"></script>
+</body>
+
 </html>
