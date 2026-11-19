@@ -1226,6 +1226,11 @@ function sendUpdateStatus(channel, data) {
 }
 
 function setupAutoUpdater() {
+  if (!app.isPackaged) {
+    // Đang chạy ở chế độ dev/unpacked — không kích hoạt autoUpdater nền
+    return;
+  }
+
   // Cấu hình autoUpdater
   autoUpdater.autoDownload = true;       // Tự tải bản mới về ngầm
   autoUpdater.autoInstallOnAppQuit = true; // Tự cài khi thoát app
@@ -1291,6 +1296,13 @@ ipcMain.handle("cai-dat-cap-nhat", () => {
 
 // Người dùng bấm nút "Kiểm tra cập nhật" thủ công
 ipcMain.handle("kiem-tra-cap-nhat", async () => {
+  if (!app.isPackaged) {
+    return {
+      ok: false,
+      isDev: true,
+      error: "Đang chạy ở chế độ phát triển (Dev Mode). Tính năng cập nhật tự động chỉ hoạt động trên bản cài đặt Windows (.exe).",
+    };
+  }
   try {
     const result = await autoUpdater.checkForUpdates();
     return { ok: true, version: result?.updateInfo?.version || null };

@@ -3433,7 +3433,11 @@ if (thangNamInput) {
           const res = await window.api.kiemTraCapNhat();
           if (res && res.ok === false) {
             console.warn("Lỗi kiểm tra cập nhật:", res.error);
-            showToast("Chưa thể kiểm tra cập nhật lúc này.", "warning", 3000);
+            if (res.isDev) {
+              showToast(res.error, "warning", 5000);
+            } else {
+              showToast("Chưa thể kiểm tra cập nhật lúc này.", "warning", 3000);
+            }
           }
         }
       } catch (err) {
