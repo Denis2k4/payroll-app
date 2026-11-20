@@ -65,12 +65,12 @@ export default function LoginPage() {
 
         {/* Logo & tiêu đề */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-white rounded-2xl mb-4 shadow-md border border-emerald-100">
+          <div className="inline-flex items-center justify-center mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.png"
               alt="Logo"
-              className="h-16 w-auto max-w-[200px] object-contain"
+              className="h-16 w-auto max-w-[220px] object-contain"
             />
           </div>
           <h1 className="text-3xl font-bold" style={{ color: '#065f46' }}>

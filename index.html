@@ -235,7 +235,8 @@
               </div>
             </div>
             <div>
-              <button type="button" class="secondary-btn" id="btnChuyenSangXemTruoc" style="padding:6px 14px;font-size:12px">
+              <button type="button" class="secondary-btn" id="btnChuyenSangXemTruoc"
+                style="padding:6px 14px;font-size:12px">
                 👁️ Xem trước bảng lương
               </button>
             </div>
@@ -268,14 +269,16 @@
           <!-- Thanh lọc danh sách lỗi / cảnh báo -->
           <div class="panel-filter-row" style="margin-top:12px;margin-bottom:12px">
             <div class="search-mini-wrap" style="flex:1.2;min-width:180px">
-              <input type="text" id="oTimKiemValidation" placeholder="🔍 Tìm theo mã NV, họ tên, nội dung lỗi..." class="input-mini" style="width:100%" />
+              <input type="text" id="oTimKiemValidation" placeholder="🔍 Tìm theo mã NV, họ tên, nội dung lỗi..."
+                class="input-mini" style="width:100%" />
             </div>
             <select id="locMucDoValidation" style="font-size:12px;padding:5px 8px">
               <option value="all">Tất cả mức độ</option>
               <option value="error">❌ Chỉ dòng có lỗi</option>
               <option value="warning">⚠️ Chỉ dòng có cảnh báo</option>
             </select>
-            <button type="button" class="ghost-btn" id="btnResetLocValidation" style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
+            <button type="button" class="ghost-btn" id="btnResetLocValidation"
+              style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
           </div>
 
           <div class="table-responsive-wrapper table-fixed-height">
@@ -347,7 +350,8 @@
             <!-- Thanh lọc & tìm kiếm PDF -->
             <div class="panel-filter-row" style="margin-top:6px;margin-bottom:10px">
               <div class="search-mini-wrap" style="flex:1.2;min-width:140px">
-                <input type="text" id="oTimKiemPdf" placeholder="🔍 Tìm mã NV, họ tên..." class="input-mini" style="width:100%" />
+                <input type="text" id="oTimKiemPdf" placeholder="🔍 Tìm mã NV, họ tên..." class="input-mini"
+                  style="width:100%" />
               </div>
               <select id="locBoPhanPdf" style="font-size:12px;padding:5px 8px">
                 <option value="">Tất cả bộ phận</option>
@@ -357,7 +361,8 @@
                 <option value="chua_xuat">Chưa xuất PDF</option>
                 <option value="da_xuat">✓ Đã xuất PDF</option>
               </select>
-              <button type="button" class="ghost-btn" id="btnResetLocPdf" style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
+              <button type="button" class="ghost-btn" id="btnResetLocPdf" style="padding:4px 8px;font-size:11.5px">Xóa
+                lọc</button>
             </div>
 
             <div class="table-responsive-wrapper table-split-height">
@@ -366,11 +371,14 @@
                   <tr>
                     <th class="chk-col"><input type="checkbox" id="chkAllPdf" title="Chọn tất cả"></th>
                     <th class="sortable" data-sort-key="stt" style="width:55px">STT<span class="sort-arrow"></span></th>
-                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span>
+                    </th>
                     <th class="sortable" data-sort-key="hoTen">Họ tên<span class="sort-arrow"></span></th>
                     <th class="sortable" data-sort-key="boPhan">Bộ phận<span class="sort-arrow"></span></th>
-                    <th class="sortable" data-sort-key="thucNhan" style="text-align:right">Thực nhận<span class="sort-arrow"></span></th>
-                    <th class="sortable" data-sort-key="daXuat" style="width:115px;text-align:center">Trạng thái<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="thucNhan" style="text-align:right">Thực nhận<span
+                        class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="daXuat" style="width:115px;text-align:center">Trạng thái<span
+                        class="sort-arrow"></span></th>
                     <th style="width:90px;text-align:center">Hành động</th>
                   </tr>
                 </thead>
@@ -460,7 +468,8 @@
             <!-- Thanh lọc & tìm kiếm Email -->
             <div class="panel-filter-row" style="margin-top:6px;margin-bottom:10px">
               <div class="search-mini-wrap" style="flex:1.2;min-width:140px">
-                <input type="text" id="oTimKiemEmail" placeholder="🔍 Tìm mã NV, họ tên, email..." class="input-mini" style="width:100%" />
+                <input type="text" id="oTimKiemEmail" placeholder="🔍 Tìm mã NV, họ tên, email..." class="input-mini"
+                  style="width:100%" />
               </div>
               <select id="locBoPhanEmail" style="font-size:12px;padding:5px 8px">
                 <option value="">Tất cả bộ phận</option>
@@ -473,7 +482,8 @@
                 <option value="has_email">Có email</option>
                 <option value="no_email">Chưa có email</option>
               </select>
-              <button type="button" class="ghost-btn" id="btnResetLocEmail" style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
+              <button type="button" class="ghost-btn" id="btnResetLocEmail" style="padding:4px 8px;font-size:11.5px">Xóa
+                lọc</button>
             </div>
 
             <div class="table-responsive-wrapper table-email-height">
@@ -481,12 +491,15 @@
                 <thead>
                   <tr>
                     <th class="chk-col"><input type="checkbox" id="chkAllEmail" title="Chọn tất cả"></th>
-                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span>
+                    </th>
                     <th class="sortable" data-sort-key="hoTen">Họ tên<span class="sort-arrow"></span></th>
                     <th class="sortable" data-sort-key="boPhan">Bộ phận<span class="sort-arrow"></span></th>
                     <th class="sortable" data-sort-key="email">Email nhận<span class="sort-arrow"></span></th>
-                    <th class="sortable" data-sort-key="trangThai" style="width:115px;text-align:center">Trạng thái<span class="sort-arrow"></span></th>
-                    <th class="sortable" data-sort-key="time" style="width:115px">Thời gian<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="trangThai" style="width:115px;text-align:center">Trạng thái<span
+                        class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="time" style="width:115px">Thời gian<span
+                        class="sort-arrow"></span></th>
                     <th style="width:85px;text-align:center">Hành động</th>
                   </tr>
                 </thead>
@@ -556,7 +569,8 @@
             <!-- Thanh lọc & tìm kiếm Portal -->
             <div class="panel-filter-row" style="margin-top:6px;margin-bottom:10px">
               <div class="search-mini-wrap" style="flex:1.2;min-width:140px">
-                <input type="text" id="oTimKiemPortal" placeholder="🔍 Tìm mã NV, họ tên..." class="input-mini" style="width:100%" />
+                <input type="text" id="oTimKiemPortal" placeholder="🔍 Tìm mã NV, họ tên..." class="input-mini"
+                  style="width:100%" />
               </div>
               <select id="locBoPhanPortal" style="font-size:12px;padding:5px 8px">
                 <option value="">Tất cả bộ phận</option>
@@ -567,7 +581,8 @@
                 <option value="pending">⏳ Chưa upload</option>
                 <option value="error">❌ Lỗi upload</option>
               </select>
-              <button type="button" class="ghost-btn" id="btnResetLocPortal" style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
+              <button type="button" class="ghost-btn" id="btnResetLocPortal"
+                style="padding:4px 8px;font-size:11.5px">Xóa lọc</button>
             </div>
 
             <div class="table-responsive-wrapper table-split-height">
@@ -575,12 +590,16 @@
                 <thead>
                   <tr>
                     <th class="chk-col"><input type="checkbox" id="chkAllPortal" title="Chọn tất cả"></th>
-                    <th class="sortable" data-sort-key="stt" style="width:55px;text-align:center">STT<span class="sort-arrow"></span></th>
-                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="stt" style="width:55px;text-align:center">STT<span
+                        class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="maNV" style="width:95px">Mã NV<span class="sort-arrow"></span>
+                    </th>
                     <th class="sortable" data-sort-key="hoTen">Họ tên<span class="sort-arrow"></span></th>
                     <th class="sortable" data-sort-key="boPhan">Bộ phận<span class="sort-arrow"></span></th>
-                    <th class="sortable" data-sort-key="portalAccount">Tài khoản Portal<span class="sort-arrow"></span></th>
-                    <th class="sortable" data-sort-key="trangThai" style="width:115px;text-align:center">Trạng thái<span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort-key="portalAccount">Tài khoản Portal<span class="sort-arrow"></span>
+                    </th>
+                    <th class="sortable" data-sort-key="trangThai" style="width:115px;text-align:center">Trạng thái<span
+                        class="sort-arrow"></span></th>
                     <th style="width:90px;text-align:center">Hành động</th>
                   </tr>
                 </thead>
@@ -718,13 +737,20 @@
                   <th style="width: 44px; text-align: center;">
                     <input type="checkbox" id="chkManageChonTatCa" title="Chọn / Bỏ chọn tất cả" />
                   </th>
-                  <th class="sortable" data-sort-key="stt" style="width: 50px; text-align: center;">STT<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="ma_nv" style="width: 95px;">Mã NV<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="ho_ten" style="min-width: 140px;">Họ và tên<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="bo_phan" style="min-width: 130px;">Bộ phận<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="thang_nam" style="width: 95px; text-align: center;">Kỳ lương<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="uploaded_at" style="width: 140px;">Ngày tải lên<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="status" style="width: 125px; text-align: center;">Trạng thái<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="stt" style="width: 50px; text-align: center;">STT<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="ma_nv" style="width: 95px;">Mã NV<span class="sort-arrow"></span>
+                  </th>
+                  <th class="sortable" data-sort-key="ho_ten" style="min-width: 140px;">Họ và tên<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="bo_phan" style="min-width: 130px;">Bộ phận<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="thang_nam" style="width: 95px; text-align: center;">Kỳ lương<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="uploaded_at" style="width: 140px;">Ngày tải lên<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="status" style="width: 125px; text-align: center;">Trạng thái<span
+                      class="sort-arrow"></span></th>
                   <th style="min-width: 190px; text-align: center;">Thao tác</th>
                 </tr>
               </thead>
@@ -849,7 +875,8 @@
                 <option value="payslip_count_desc">Nhiều phiếu lương nhất</option>
               </select>
               <button class="ghost-btn" id="btnResetLocAccounts" type="button">Xóa lọc</button>
-              <button class="ghost-btn" id="btnXuatCsvAccounts" type="button" title="Xuất danh sách tài khoản ra file CSV để chia sẻ">
+              <button class="ghost-btn" id="btnXuatCsvAccounts" type="button"
+                title="Xuất danh sách tài khoản ra file CSV để chia sẻ">
                 📥 Xuất CSV
               </button>
             </div>
@@ -861,8 +888,8 @@
               Đã chọn: <strong id="lblSoLuongAccountsChon">0</strong> nhân viên
             </div>
             <div style="display:flex;gap:8px">
-              <button type="button" class="btn-primary" id="btnCapTaiKhoanChon"
-                style="padding:5px 12px;font-size:12px" title="Cấp tài khoản cho các nhân viên đã chọn chưa có tài khoản" disabled>
+              <button type="button" class="btn-primary" id="btnCapTaiKhoanChon" style="padding:5px 12px;font-size:12px"
+                title="Cấp tài khoản cho các nhân viên đã chọn chưa có tài khoản" disabled>
                 ⚡ Cấp tài khoản đã chọn
               </button>
               <button type="button" class="secondary-btn" id="btnResetPassChon"
@@ -870,13 +897,12 @@
                 🔑 Đặt lại pass mặc định
               </button>
               <button type="button" class="ghost-btn" id="btnKhoaChonAccounts"
-                style="color:var(--warning);border-color:rgba(245,158,11,0.3)"
-                title="Khóa các tài khoản đã chọn" disabled>
+                style="color:var(--warning);border-color:rgba(245,158,11,0.3)" title="Khóa các tài khoản đã chọn"
+                disabled>
                 🔒 Khóa tài khoản
               </button>
               <button type="button" class="ghost-btn" id="btnXoaChonAccounts"
-                style="color:var(--danger);border-color:rgba(239,68,68,0.3)"
-                title="Xóa tài khoản đã chọn" disabled>
+                style="color:var(--danger);border-color:rgba(239,68,68,0.3)" title="Xóa tài khoản đã chọn" disabled>
                 🗑️ Xóa tài khoản
               </button>
             </div>
@@ -890,14 +916,22 @@
                   <th style="width: 44px; text-align: center;">
                     <input type="checkbox" id="chkAccountsChonTatCa" title="Chọn / Bỏ chọn tất cả" />
                   </th>
-                  <th class="sortable" data-sort-key="stt" style="width: 50px; text-align: center;">STT<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="ma_nv" style="width: 95px;">Mã NV<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="ho_ten" style="min-width: 140px;">Họ và tên<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="bo_phan" style="min-width: 120px;">Bộ phận<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="email" style="min-width: 170px;">Tài khoản đăng nhập<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="status" style="width: 145px; text-align: center;">Trạng thái TK<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="payslip_count" style="width: 95px; text-align: center;">Phiếu lương<span class="sort-arrow"></span></th>
-                  <th class="sortable" data-sort-key="last_sign_in_at" style="width: 135px;">Đăng nhập cuối<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="stt" style="width: 50px; text-align: center;">STT<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="ma_nv" style="width: 95px;">Mã NV<span class="sort-arrow"></span>
+                  </th>
+                  <th class="sortable" data-sort-key="ho_ten" style="min-width: 140px;">Họ và tên<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="bo_phan" style="min-width: 120px;">Bộ phận<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="email" style="min-width: 170px;">Tài khoản đăng nhập<span
+                      class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="status" style="width: 145px; text-align: center;">Trạng thái
+                    TK<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="payslip_count" style="width: 95px; text-align: center;">Phiếu
+                    lương<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="last_sign_in_at" style="width: 135px;">Đăng nhập cuối<span
+                      class="sort-arrow"></span></th>
                   <th style="min-width: 220px; text-align: center;">Thao tác</th>
                 </tr>
               </thead>
@@ -910,7 +944,8 @@
           <!-- Loading state hoặc Empty state -->
           <div id="accountsLoading" style="text-align: center; padding: 36px 20px; display: none;">
             <div style="font-size: 28px; animation: updateSpin 1.2s linear infinite; display: inline-block;">⏳</div>
-            <p style="margin-top: 8px; font-weight: 600; color: var(--text-muted);">Đang tải danh sách tài khoản từ Supabase...</p>
+            <p style="margin-top: 8px; font-weight: 600; color: var(--text-muted);">Đang tải danh sách tài khoản từ
+              Supabase...</p>
           </div>
           <div id="accountsEmpty" style="text-align: center; padding: 40px 20px; display: none;">
             <div style="font-size: 36px;">👥</div>
@@ -1101,15 +1136,18 @@
     <div class="modal-box" style="max-width:440px" role="dialog" aria-modal="true">
       <div class="modal-title">🔑 Đặt lại mật khẩu Portal</div>
       <div style="margin:12px 0 16px;font-size:13px;color:var(--text-muted)">
-        Nhân viên: <strong id="resetPassEmpName" style="color:var(--text)"></strong> (<span id="resetPassEmpCode"></span>)
+        Nhân viên: <strong id="resetPassEmpName" style="color:var(--text)"></strong> (<span
+          id="resetPassEmpCode"></span>)
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
         <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px">
           <input type="radio" name="radResetPassType" value="default" checked style="margin-top:3px" />
           <div>
             <strong>Đặt về mật khẩu mặc định:</strong>
-            <span id="resetPassDefaultVal" style="font-family:monospace;background:var(--bg-hover);padding:2px 6px;border-radius:4px;font-weight:700"></span>
-            <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">Bắt buộc nhân viên đổi mật khẩu mới ở lần đăng nhập tiếp theo.</div>
+            <span id="resetPassDefaultVal"
+              style="font-family:monospace;background:var(--bg-hover);padding:2px 6px;border-radius:4px;font-weight:700"></span>
+            <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">Bắt buộc nhân viên đổi mật khẩu mới ở
+              lần đăng nhập tiếp theo.</div>
           </div>
         </label>
         <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px">
@@ -1134,26 +1172,33 @@
       <div class="modal-title" id="modalUpsertTitle">➕ Thêm nhân viên mới</div>
       <div style="display:flex;flex-direction:column;gap:12px;margin:14px 0 18px">
         <div>
-          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Mã nhân viên <span style="color:var(--danger)">*</span></label>
-          <input type="text" id="upsertMaNV" placeholder="Ví dụ: NV001" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Mã nhân viên <span
+              style="color:var(--danger)">*</span></label>
+          <input type="text" id="upsertMaNV" placeholder="Ví dụ: NV001"
+            style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
         </div>
         <div>
-          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Họ và tên <span style="color:var(--danger)">*</span></label>
-          <input type="text" id="upsertHoTen" placeholder="Ví dụ: Nguyễn Văn A" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Họ và tên <span
+              style="color:var(--danger)">*</span></label>
+          <input type="text" id="upsertHoTen" placeholder="Ví dụ: Nguyễn Văn A"
+            style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
             <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Bộ phận</label>
-            <input type="text" id="upsertBoPhan" placeholder="Ví dụ: Kinh doanh" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+            <input type="text" id="upsertBoPhan" placeholder="Ví dụ: Kinh doanh"
+              style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
           </div>
           <div>
             <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Khối</label>
-            <input type="text" id="upsertKhoi" placeholder="Ví dụ: Khối Văn phòng" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+            <input type="text" id="upsertKhoi" placeholder="Ví dụ: Khối Văn phòng"
+              style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
           </div>
         </div>
         <div>
           <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Cơ sở / Chi nhánh</label>
-          <input type="text" id="upsertCoSo" placeholder="Ví dụ: Trụ sở chính" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+          <input type="text" id="upsertCoSo" placeholder="Ví dụ: Trụ sở chính"
+            style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
         </div>
         <div id="upsertAuthSection" style="padding:10px 12px;background:var(--bg-hover);border-radius:8px">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">

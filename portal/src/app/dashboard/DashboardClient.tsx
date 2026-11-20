@@ -73,12 +73,12 @@ export default function DashboardClient({ payslips, maNV, tenNV, tenCongTy, fetc
 
           {/* Logo + Info NV */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="h-11 px-2 bg-white rounded-xl flex items-center justify-center flex-shrink-0 border border-emerald-100 shadow-sm">
+            <div className="flex items-center justify-center flex-shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/logo.png"
                 alt="Logo"
-                className="h-8 w-auto max-w-[120px] object-contain"
+                className="h-9 w-auto max-w-[140px] object-contain"
               />
             </div>
             <div className="min-w-0">

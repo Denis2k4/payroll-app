@@ -75,7 +75,7 @@ export default function ChangePasswordPage() {
     >
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-emerald-100">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center p-2.5 bg-white rounded-xl mx-auto mb-3 shadow-md border border-emerald-100">
+          <div className="inline-flex items-center justify-center mx-auto mb-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.png"
