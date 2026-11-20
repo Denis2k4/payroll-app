@@ -4171,6 +4171,17 @@ document.querySelectorAll(".nav-tab").forEach((tab) => {
   tab.addEventListener("click", () => switchTab(tab.dataset.tab));
 });
 
+// Bấm vào Logo HeheHR trên Topbar để trở về trang đầu (nhập file Excel)
+$("btnLogoHome")?.addEventListener("click", () => {
+  switchTab("home");
+});
+$("btnLogoHome")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    switchTab("home");
+  }
+});
+
 // Nút Đổi file Excel
 $("btnDoiFileExcel")?.addEventListener("click", () => {
   switchTab("home");
