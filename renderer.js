@@ -3967,6 +3967,9 @@ function wireAccountEvents() {
       return;
     }
 
+    const targetMaNV = currentResetTarget.maNV;
+    const targetUserId = currentResetTarget.userId;
+
     const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
     try {
       const btn = $("modalResetPassConfirmBtn");
@@ -3976,14 +3979,14 @@ function wireAccountEvents() {
       const res = await window.api.datLaiMatKhauPortal({
         supabaseUrl,
         serviceRoleKey,
-        userId: currentResetTarget.userId,
-        maNV: currentResetTarget.maNV,
+        userId: targetUserId,
+        maNV: targetMaNV,
         newPassword: isCustom ? customPass : null,
       });
 
       if (res && res.ok) {
         dongModalResetPassword();
-        showToast(`✓ Đã đặt lại mật khẩu cho "${currentResetTarget.maNV}" thành công (Mật khẩu mới: ${res.newPassword}).`, "success", 6000);
+        showToast(`✓ Đã đặt lại mật khẩu cho "${targetMaNV}" thành công (Mật khẩu mới: ${res.newPassword}).`, "success", 6000);
         await taiDanhSachAccounts();
       } else {
         showToast(`Đặt lại mật khẩu thất bại: ${(res && res.error) || "Lỗi"}`, "error");
