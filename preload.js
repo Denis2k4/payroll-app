@@ -58,4 +58,24 @@ contextBridge.exposeInMainWorld("api", {
   laySignedUrlPhieuLuong: (payload) =>
     ipcRenderer.invoke("portal-get-signed-url", payload),
   moLinkNgoai: (url) => ipcRenderer.invoke("mo-link-ngoai", url),
+
+  // ---------- Quản lý Tài Khoản Portal (Supabase) ----------
+  layDanhSachTaiKhoanPortal: (payload) =>
+    ipcRenderer.invoke("portal-fetch-accounts", payload),
+  taoTaiKhoanPortal: (payload) =>
+    ipcRenderer.invoke("portal-create-account", payload),
+  taoTaiKhoanHangLoatPortal: (payload) =>
+    ipcRenderer.invoke("portal-create-accounts-batch", payload),
+  datLaiMatKhauPortal: (payload) =>
+    ipcRenderer.invoke("portal-reset-password", payload),
+  datLaiMatKhauHangLoatPortal: (payload) =>
+    ipcRenderer.invoke("portal-reset-passwords-batch", payload),
+  khoaTaiKhoanPortal: (payload) =>
+    ipcRenderer.invoke("portal-toggle-ban-account", payload),
+  xoaTaiKhoanPortal: (payload) =>
+    ipcRenderer.invoke("portal-delete-account", payload),
+  xoaTaiKhoanHangLoatPortal: (payload) =>
+    ipcRenderer.invoke("portal-delete-accounts-batch", payload),
+  luuNhanVienPortal: (payload) =>
+    ipcRenderer.invoke("portal-upsert-employee", payload),
 });

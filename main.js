@@ -1213,6 +1213,176 @@ ipcMain.handle("mo-link-ngoai", async (event, url) => {
 });
 
 // ============================================================
+// QUẢN LÝ TÀI KHOẢN NHÂN VIÊN TRÊN PORTAL (SUPABASE)
+// ============================================================
+ipcMain.handle(
+  "portal-fetch-accounts",
+  async (event, { supabaseUrl, serviceRoleKey }) => {
+    try {
+      const { fetchAccounts } = getPortalUploader();
+      const data = await fetchAccounts({ supabaseUrl, serviceRoleKey });
+      return { ok: true, data };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-create-account",
+  async (event, { supabaseUrl, serviceRoleKey, employee, customPassword }) => {
+    try {
+      const { createAccountForEmployee } = getPortalUploader();
+      const result = await createAccountForEmployee({
+        supabaseUrl,
+        serviceRoleKey,
+        employee,
+        customPassword,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-create-accounts-batch",
+  async (event, { supabaseUrl, serviceRoleKey, employees }) => {
+    try {
+      const { createAccountsBatch } = getPortalUploader();
+      const result = await createAccountsBatch({
+        supabaseUrl,
+        serviceRoleKey,
+        employees,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-reset-password",
+  async (event, { supabaseUrl, serviceRoleKey, userId, maNV, newPassword }) => {
+    try {
+      const { resetPassword } = getPortalUploader();
+      const result = await resetPassword({
+        supabaseUrl,
+        serviceRoleKey,
+        userId,
+        maNV,
+        newPassword,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-reset-passwords-batch",
+  async (event, { supabaseUrl, serviceRoleKey, accounts }) => {
+    try {
+      const { resetPasswordsBatch } = getPortalUploader();
+      const result = await resetPasswordsBatch({
+        supabaseUrl,
+        serviceRoleKey,
+        accounts,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-toggle-ban-account",
+  async (event, { supabaseUrl, serviceRoleKey, userId, ban }) => {
+    try {
+      const { toggleBanAccount } = getPortalUploader();
+      const result = await toggleBanAccount({
+        supabaseUrl,
+        serviceRoleKey,
+        userId,
+        ban,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-delete-account",
+  async (
+    event,
+    { supabaseUrl, serviceRoleKey, maNV, userId, deleteEmployeeRecord },
+  ) => {
+    try {
+      const { deleteAccount } = getPortalUploader();
+      const result = await deleteAccount({
+        supabaseUrl,
+        serviceRoleKey,
+        maNV,
+        userId,
+        deleteEmployeeRecord,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-delete-accounts-batch",
+  async (
+    event,
+    { supabaseUrl, serviceRoleKey, items, deleteEmployeeRecord },
+  ) => {
+    try {
+      const { deleteAccountsBatch } = getPortalUploader();
+      const result = await deleteAccountsBatch({
+        supabaseUrl,
+        serviceRoleKey,
+        items,
+        deleteEmployeeRecord,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "portal-upsert-employee",
+  async (
+    event,
+    { supabaseUrl, serviceRoleKey, employee, createAuthAccount, customPassword },
+  ) => {
+    try {
+      const { upsertEmployee } = getPortalUploader();
+      const result = await upsertEmployee({
+        supabaseUrl,
+        serviceRoleKey,
+        employee,
+        createAuthAccount,
+        customPassword,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message || String(err) };
+    }
+  },
+);
+
+// ============================================================
 // AUTO-UPDATER (electron-updater)
 // Kiểm tra phiên bản mới trên GitHub Releases khi khởi động.
 // Nếu có bản mới → tự tải về → thông báo cho người dùng →

@@ -3145,6 +3145,936 @@ function wireManageEvents() {
 }
 
 // ============================================================
+// QUẢN LÝ TÀI KHOẢN NHÂN VIÊN TRÊN WEB PORTAL (SUPABASE)
+// ============================================================
+let manageAccounts = [];
+const selectedAccountIds = new Set();
+let accountsSearchQuery = "";
+let accountsBoPhanFilter = "";
+let accountsStatusFilter = "all";
+let isLoadingAccounts = false;
+const accountsSortState = { key: "ma_nv", dir: 1 };
+
+let currentResetTarget = null;
+let currentUpsertTarget = null;
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+async function taiDanhSachAccounts() {
+  const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+  const noConfigBox = $("accountsNoConfigWarning");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    if (noConfigBox) {
+      noConfigBox.hidden = false;
+      noConfigBox.style.display = "block";
+    }
+    manageAccounts = [];
+    renderAccountsTable();
+    return;
+  }
+
+  if (noConfigBox) {
+    noConfigBox.hidden = true;
+    noConfigBox.style.display = "none";
+  }
+
+  const loadingEl = $("accountsLoading");
+  const emptyEl = $("accountsEmpty");
+  if (loadingEl) loadingEl.style.display = "block";
+  if (emptyEl) emptyEl.style.display = "none";
+  isLoadingAccounts = true;
+
+  try {
+    const ketQua = await window.api.layDanhSachTaiKhoanPortal({
+      supabaseUrl,
+      serviceRoleKey,
+    });
+
+    if (ketQua && ketQua.ok) {
+      manageAccounts = ketQua.data || [];
+      capNhatDropdownBoPhanAccounts();
+      renderAccountsTable();
+    } else {
+      showToast(`Không thể tải danh sách tài khoản: ${(ketQua && ketQua.error) || "Lỗi không xác định"}`, "error");
+      manageAccounts = [];
+      renderAccountsTable();
+    }
+  } catch (err) {
+    showToast(`Lỗi kết nối Supabase: ${err.message || err}`, "error");
+    manageAccounts = [];
+    renderAccountsTable();
+  } finally {
+    isLoadingAccounts = false;
+    if (loadingEl) loadingEl.style.display = "none";
+  }
+}
+
+function capNhatDropdownBoPhanAccounts() {
+  const select = $("locBoPhanAccounts");
+  if (!select) return;
+  const currentVal = select.value || "";
+  const boPhans = [...new Set(manageAccounts.map((a) => a.bo_phan).filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi"));
+
+  let html = '<option value="">Tất cả bộ phận</option>';
+  boPhans.forEach((bp) => {
+    html += `<option value="${escapeHtml(bp)}">${escapeHtml(bp)}</option>`;
+  });
+  select.innerHTML = html;
+  if (boPhans.includes(currentVal) || currentVal === "") {
+    select.value = currentVal;
+    accountsBoPhanFilter = currentVal;
+  } else {
+    select.value = "";
+    accountsBoPhanFilter = "";
+  }
+}
+
+function getFilteredAccounts() {
+  let list = manageAccounts.filter((a) => {
+    if (accountsBoPhanFilter && a.bo_phan !== accountsBoPhanFilter) return false;
+    if (accountsStatusFilter !== "all") {
+      if (accountsStatusFilter === "has_account" && !a.has_account) return false;
+      if (accountsStatusFilter === "password_changed" && (!a.has_account || !a.password_changed || a.is_banned)) return false;
+      if (accountsStatusFilter === "default_pass" && (!a.has_account || a.password_changed || a.is_banned)) return false;
+      if (accountsStatusFilter === "no_account" && a.has_account) return false;
+      if (accountsStatusFilter === "banned" && !a.is_banned) return false;
+    }
+    if (accountsSearchQuery) {
+      const q = boDauTiengViet(accountsSearchQuery.toLowerCase());
+      const text = boDauTiengViet(`${a.ma_nv || ""} ${a.ho_ten || ""} ${a.email || ""} ${a.bo_phan || ""} ${a.khoi || ""} ${a.co_so || ""}`).toLowerCase();
+      if (!text.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (accountsSortState.key) {
+    const { key, dir } = accountsSortState;
+    list.sort((a, b) => {
+      if (key === "stt") return 0;
+      if (key === "last_sign_in_at" || key === "last_sign_in_desc") {
+        const ta = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
+        const tb = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
+        return (ta - tb) * dir;
+      }
+      if (key === "payslip_count" || key === "payslip_count_desc") {
+        return ((a.payslip_count || 0) - (b.payslip_count || 0)) * dir;
+      }
+      if (key === "status") {
+        const sa = a.is_banned ? "4" : a.password_changed ? "1" : a.has_account ? "2" : "3";
+        const sb = b.is_banned ? "4" : b.password_changed ? "1" : b.has_account ? "2" : "3";
+        return sa.localeCompare(sb) * dir;
+      }
+      const va = String(a[key] || "");
+      const vb = String(b[key] || "");
+      return va.localeCompare(vb, "vi") * dir;
+    });
+  }
+
+  return list;
+}
+
+function renderAccountsTable() {
+  const tbody = $("bangAccountsBody");
+  if (!tbody) return;
+
+  const filtered = getFilteredAccounts();
+
+  // Thống kê thẻ KPI
+  const tong = manageAccounts.length;
+  const passChanged = manageAccounts.filter((a) => a.has_account && a.password_changed && !a.is_banned).length;
+  const defaultPass = manageAccounts.filter((a) => a.has_account && !a.password_changed && !a.is_banned).length;
+  const noAccount = manageAccounts.filter((a) => !a.has_account).length;
+  const banned = manageAccounts.filter((a) => a.is_banned).length;
+
+  if ($("soLuongAccountsTong")) $("soLuongAccountsTong").textContent = tong;
+  if ($("soLuongAccountsPasswordChanged")) $("soLuongAccountsPasswordChanged").textContent = passChanged;
+  if ($("soLuongAccountsDefaultPass")) $("soLuongAccountsDefaultPass").textContent = defaultPass;
+  if ($("soLuongAccountsNoAccount")) $("soLuongAccountsNoAccount").textContent = noAccount;
+  if ($("soLuongAccountsBanned")) $("soLuongAccountsBanned").textContent = banned;
+  if ($("soLuongAccountsTongLabel")) $("soLuongAccountsTongLabel").textContent = `${filtered.length} / ${tong} tài khoản`;
+
+  // Cập nhật thanh hành động hàng loạt
+  const selectedCount = selectedAccountIds.size;
+  if ($("lblSoLuongAccountsChon")) $("lblSoLuongAccountsChon").textContent = selectedCount;
+  if ($("btnCapTaiKhoanChon")) $("btnCapTaiKhoanChon").disabled = selectedCount === 0;
+  if ($("btnResetPassChon")) $("btnResetPassChon").disabled = selectedCount === 0;
+  if ($("btnKhoaChonAccounts")) $("btnKhoaChonAccounts").disabled = selectedCount === 0;
+  if ($("btnXoaChonAccounts")) $("btnXoaChonAccounts").disabled = selectedCount === 0;
+
+  // Cập nhật checkbox chọn tất cả
+  const chkAll = $("chkAccountsChonTatCa");
+  if (chkAll) {
+    if (filtered.length === 0) {
+      chkAll.checked = false;
+      chkAll.indeterminate = false;
+    } else {
+      const allSelected = filtered.every((a) => selectedAccountIds.has(a.ma_nv));
+      const someSelected = filtered.some((a) => selectedAccountIds.has(a.ma_nv));
+      chkAll.checked = allSelected;
+      chkAll.indeterminate = !allSelected && someSelected;
+    }
+  }
+
+  // Cập nhật mũi tên sắp xếp trên header
+  document.querySelectorAll("#bangAccountsTable th.sortable").forEach((th) => {
+    const key = th.dataset.sortKey;
+    const arrow = th.querySelector(".sort-arrow");
+    if (arrow) {
+      if (key === accountsSortState.key) {
+        arrow.textContent = accountsSortState.dir === 1 ? " ▲" : " ▼";
+        th.classList.add("active-sort");
+      } else {
+        arrow.textContent = "";
+        th.classList.remove("active-sort");
+      }
+    }
+  });
+
+  // Empty state
+  const emptyEl = $("accountsEmpty");
+  if (filtered.length === 0 && !isLoadingAccounts) {
+    tbody.innerHTML = "";
+    if (emptyEl) {
+      emptyEl.style.display = "block";
+      const emptyMsg = $("accountsEmptyMsg");
+      if (emptyMsg) {
+        emptyMsg.textContent = manageAccounts.length === 0
+          ? "Chưa có nhân viên nào trong cơ sở dữ liệu Supabase."
+          : "Không tìm thấy tài khoản nào khớp với bộ lọc.";
+      }
+    }
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = "none";
+
+  let html = "";
+  filtered.forEach((acc, index) => {
+    const isSelected = selectedAccountIds.has(acc.ma_nv);
+    const maNV = escapeHtml(acc.ma_nv);
+    const hoTen = escapeHtml(acc.ho_ten || acc.ma_nv);
+    const boPhan = escapeHtml(acc.bo_phan || "-");
+    const email = escapeHtml(acc.email);
+    const defaultPass = escapeHtml(acc.default_password || "");
+    const payslipCount = acc.payslip_count || 0;
+    const lastSignIn = formatNgayGioVi(acc.last_sign_in_at);
+
+    // Trạng thái badge
+    let statusBadge = "";
+    if (acc.is_banned) {
+      statusBadge = '<span class="badge error" title="Tài khoản đang bị khóa tạm thời">🔒 Bị khóa</span>';
+    } else if (acc.has_account && acc.password_changed) {
+      statusBadge = '<span class="badge ok" title="Đã đổi mật khẩu cá nhân, tài khoản đang hoạt động tốt">🟢 Đã đổi pass</span>';
+    } else if (acc.has_account && !acc.password_changed) {
+      statusBadge = `<span class="badge warning" title="Đang sử dụng mật khẩu mặc định: ${defaultPass}">🟡 Pass mặc định</span>`;
+    } else {
+      statusBadge = '<span class="badge" style="background:rgba(156,163,175,0.2);color:#4b5563" title="Chưa được tạo tài khoản Supabase Auth">⚪ Chưa cấp</span>';
+    }
+
+    // Các nút thao tác
+    let actionButtons = "";
+    if (acc.has_account) {
+      actionButtons += `
+        <button type="button" class="btn-action-mini btn-reset-pass" data-manv="${maNV}" data-hoten="${hoTen}" data-userid="${acc.user_id || ""}" data-defaultpass="${defaultPass}" title="Đặt lại mật khẩu cho nhân viên này">
+          🔑 Reset
+        </button>
+        <button type="button" class="btn-action-mini btn-copy-account" data-manv="${maNV}" data-hoten="${hoTen}" data-email="${email}" data-defaultpass="${defaultPass}" title="Copy thông tin đăng nhập để gửi Zalo/Email cho nhân viên">
+          📋 Copy
+        </button>
+        <button type="button" class="btn-action-mini btn-toggle-ban" data-userid="${acc.user_id || ""}" data-manv="${maNV}" data-ban="${acc.is_banned ? "false" : "true"}" title="${acc.is_banned ? "Mở khóa tài khoản" : "Khóa tài khoản"}">
+          ${acc.is_banned ? "🔓 Mở" : "🔒 Khóa"}
+        </button>
+      `;
+    } else {
+      actionButtons += `
+        <button type="button" class="btn-action-mini btn-primary btn-create-single-account" data-manv="${maNV}" data-hoten="${hoTen}" data-bophan="${escapeHtml(acc.bo_phan || "")}" data-khoi="${escapeHtml(acc.khoi || "")}" data-coso="${escapeHtml(acc.co_so || "")}" title="Cấp ngay tài khoản Portal cho nhân viên này">
+          ⚡ Cấp TK
+        </button>
+      `;
+    }
+
+    actionButtons += `
+      <button type="button" class="btn-action-mini btn-edit-account" data-manv="${maNV}" data-hoten="${hoTen}" data-bophan="${escapeHtml(acc.bo_phan || "")}" data-khoi="${escapeHtml(acc.khoi || "")}" data-coso="${escapeHtml(acc.co_so || "")}" title="Chỉnh sửa thông tin nhân viên">
+        ✏️ Sửa
+      </button>
+      <button type="button" class="btn-action-mini btn-danger btn-delete-account" data-manv="${maNV}" data-userid="${acc.user_id || ""}" title="Xóa tài khoản / nhân viên">
+        🗑️
+      </button>
+    `;
+
+    html += `
+      <tr class="${isSelected ? "row-selected" : ""}" data-manv="${maNV}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="chk-account-row" data-manv="${maNV}" ${isSelected ? "checked" : ""} />
+        </td>
+        <td style="text-align: center; color: var(--text-muted); font-size: 11.5px;">${index + 1}</td>
+        <td><strong style="color: var(--primary);">${maNV}</strong></td>
+        <td><span style="font-weight: 600;">${hoTen}</span></td>
+        <td style="color: var(--text-muted); font-size: 12px;">${boPhan}</td>
+        <td><code style="font-size: 11.5px; background: var(--bg-hover); padding: 2px 5px; border-radius: 4px;">${email}</code></td>
+        <td style="text-align: center;">${statusBadge}</td>
+        <td style="text-align: center;">
+          <span class="badge" style="background:rgba(99,102,241,0.15);color:#4338ca;font-weight:700">${payslipCount}</span>
+        </td>
+        <td style="font-size: 11.5px; color: var(--text-muted);">${lastSignIn}</td>
+        <td style="text-align: center; white-space: nowrap;">
+          <div style="display: inline-flex; gap: 4px;">${actionButtons}</div>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function wireAccountEvents() {
+  // Nút mở Quản lý tài khoản từ Topbar
+  $("btnMoQuanLyTaiKhoan")?.addEventListener("click", () => {
+    switchTab("accounts");
+  });
+
+  // Chuyển đổi giữa 2 tab phụ
+  $("btnSubnavManagePayslips")?.addEventListener("click", () => switchTab("manage"));
+  $("btnSubnavManageAccounts")?.addEventListener("click", () => switchTab("accounts"));
+  $("btnSubnavAccountsPayslips")?.addEventListener("click", () => switchTab("manage"));
+  $("btnSubnavAccountsAccounts")?.addEventListener("click", () => switchTab("accounts"));
+
+  // Nút Đi đến Cài đặt từ thông báo thiếu config
+  $("btnAccountsDiDenCaiDat")?.addEventListener("click", () => {
+    switchTab("settings");
+  });
+
+  // Nút Làm mới danh sách tài khoản
+  $("btnLamMoiAccounts")?.addEventListener("click", () => {
+    taiDanhSachAccounts();
+  });
+
+  // Sắp xếp bảng tài khoản
+  document.querySelectorAll("#bangAccountsTable th.sortable").forEach((th) => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.sortKey;
+      if (!key) return;
+      if (accountsSortState.key === key) {
+        accountsSortState.dir = -accountsSortState.dir;
+      } else {
+        accountsSortState.key = key;
+        accountsSortState.dir = 1;
+      }
+      renderAccountsTable();
+    });
+  });
+
+  // Lọc theo bộ phận
+  $("locBoPhanAccounts")?.addEventListener("change", (e) => {
+    accountsBoPhanFilter = e.target.value;
+    renderAccountsTable();
+  });
+
+  // Lọc theo trạng thái
+  $("locTrangThaiAccounts")?.addEventListener("change", (e) => {
+    accountsStatusFilter = e.target.value;
+    renderAccountsTable();
+  });
+
+  // Sắp xếp qua dropdown
+  $("locSapXepAccounts")?.addEventListener("change", (e) => {
+    const val = e.target.value;
+    if (val === "ma_nv_asc") { accountsSortState.key = "ma_nv"; accountsSortState.dir = 1; }
+    else if (val === "ma_nv_desc") { accountsSortState.key = "ma_nv"; accountsSortState.dir = -1; }
+    else if (val === "ho_ten_asc") { accountsSortState.key = "ho_ten"; accountsSortState.dir = 1; }
+    else if (val === "ho_ten_desc") { accountsSortState.key = "ho_ten"; accountsSortState.dir = -1; }
+    else if (val === "bo_phan_asc") { accountsSortState.key = "bo_phan"; accountsSortState.dir = 1; }
+    else if (val === "last_sign_in_desc") { accountsSortState.key = "last_sign_in_at"; accountsSortState.dir = -1; }
+    else if (val === "payslip_count_desc") { accountsSortState.key = "payslip_count"; accountsSortState.dir = -1; }
+    renderAccountsTable();
+  });
+
+  // Ô tìm kiếm tài khoản
+  $("oTimKiemAccounts")?.addEventListener("input", (e) => {
+    accountsSearchQuery = e.target.value.trim();
+    renderAccountsTable();
+  });
+
+  // Nút Xóa lọc
+  $("btnResetLocAccounts")?.addEventListener("click", () => {
+    accountsSearchQuery = "";
+    accountsBoPhanFilter = "";
+    accountsStatusFilter = "all";
+    accountsSortState.key = "ma_nv";
+    accountsSortState.dir = 1;
+    if ($("oTimKiemAccounts")) $("oTimKiemAccounts").value = "";
+    if ($("locBoPhanAccounts")) $("locBoPhanAccounts").value = "";
+    if ($("locTrangThaiAccounts")) $("locTrangThaiAccounts").value = "all";
+    if ($("locSapXepAccounts")) $("locSapXepAccounts").value = "ma_nv_asc";
+    renderAccountsTable();
+  });
+
+  // Checkbox chọn tất cả
+  $("chkAccountsChonTatCa")?.addEventListener("change", (e) => {
+    const filtered = getFilteredAccounts();
+    if (e.target.checked) {
+      filtered.forEach((a) => selectedAccountIds.add(a.ma_nv));
+    } else {
+      filtered.forEach((a) => selectedAccountIds.delete(a.ma_nv));
+    }
+    renderAccountsTable();
+  });
+
+  // Checkbox từng hàng & Các nút thao tác trên từng hàng
+  $("bangAccountsBody")?.addEventListener("click", async (e) => {
+    const rowChk = e.target.closest(".chk-account-row");
+    if (rowChk) {
+      const maNV = rowChk.dataset.manv;
+      if (rowChk.checked) selectedAccountIds.add(maNV);
+      else selectedAccountIds.delete(maNV);
+      renderAccountsTable();
+      return;
+    }
+
+    // Nút Copy thông tin tài khoản
+    const btnCopy = e.target.closest(".btn-copy-account");
+    if (btnCopy) {
+      const maNV = btnCopy.dataset.manv;
+      const hoTen = btnCopy.dataset.hoten || maNV;
+      const email = btnCopy.dataset.email;
+      const defaultPass = btnCopy.dataset.defaultpass;
+      const copyText = `Thông tin tài khoản Portal tra cứu phiếu lương:\n` +
+        `- Họ và tên: ${hoTen}\n` +
+        `- Mã nhân viên: ${maNV}\n` +
+        `- Tài khoản đăng nhập: ${email}\n` +
+        `- Mật khẩu ban đầu: ${defaultPass}\n` +
+        `\n* Lưu ý: Vui lòng đổi mật khẩu mới trong lần đầu tiên đăng nhập để bảo mật thông tin.`;
+      try {
+        await navigator.clipboard.writeText(copyText);
+        showToast(`✓ Đã copy thông tin đăng nhập của ${maNV} vào clipboard!`, "success");
+      } catch {
+        showToast("Không thể copy vào clipboard.", "warning");
+      }
+      return;
+    }
+
+    // Nút Reset Password từng người
+    const btnReset = e.target.closest(".btn-reset-pass");
+    if (btnReset) {
+      const maNV = btnReset.dataset.manv;
+      const hoTen = btnReset.dataset.hoten;
+      const userId = btnReset.dataset.userid;
+      const defaultPass = btnReset.dataset.defaultpass;
+      moModalResetPassword({ maNV, hoTen, userId, defaultPass });
+      return;
+    }
+
+    // Nút Cấp tài khoản đơn lẻ
+    const btnCreateSingle = e.target.closest(".btn-create-single-account");
+    if (btnCreateSingle) {
+      const maNV = btnCreateSingle.dataset.manv;
+      const hoTen = btnCreateSingle.dataset.hoten;
+      const boPhan = btnCreateSingle.dataset.bophan;
+      const khoi = btnCreateSingle.dataset.khoi;
+      const coSo = btnCreateSingle.dataset.coso;
+      const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+
+      try {
+        btnCreateSingle.disabled = true;
+        btnCreateSingle.textContent = "Đang tạo…";
+        const res = await window.api.taoTaiKhoanPortal({
+          supabaseUrl,
+          serviceRoleKey,
+          employee: { ma_nv: maNV, ho_ten: hoTen, bo_phan: boPhan, khoi, co_so: coSo },
+        });
+        if (res && res.ok) {
+          showToast(`✓ Đã cấp tài khoản thành công cho "${maNV}" (Mật khẩu: ${res.password}).`, "success", 6000);
+          await taiDanhSachAccounts();
+        } else {
+          showToast(`Cấp tài khoản thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+        }
+      } catch (err) {
+        showToast(`Lỗi: ${err.message || err}`, "error");
+      } finally {
+        if (btnCreateSingle) {
+          btnCreateSingle.disabled = false;
+          btnCreateSingle.textContent = "⚡ Cấp TK";
+        }
+      }
+      return;
+    }
+
+    // Nút Khóa / Mở khóa tài khoản
+    const btnBan = e.target.closest(".btn-toggle-ban");
+    if (btnBan) {
+      const userId = btnBan.dataset.userid;
+      const maNV = btnBan.dataset.manv;
+      const shouldBan = btnBan.dataset.ban === "true";
+      const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+
+      const xacNhan = await showConfirmModal({
+        title: shouldBan ? "Xác nhận khóa tài khoản" : "Xác nhận mở khóa tài khoản",
+        message: shouldBan
+          ? `Khóa tài khoản của "${maNV}"?\nNhân viên này sẽ tạm thời không thể đăng nhập vào Portal tra cứu phiếu lương.`
+          : `Mở khóa tài khoản cho "${maNV}"?\nNhân viên sẽ có thể đăng nhập bình thường.`,
+        confirmLabel: shouldBan ? "Khóa tài khoản" : "Mở khóa",
+      });
+      if (!xacNhan) return;
+
+      try {
+        const res = await window.api.khoaTaiKhoanPortal({
+          supabaseUrl,
+          serviceRoleKey,
+          userId,
+          ban: shouldBan,
+        });
+        if (res && res.ok) {
+          showToast(shouldBan ? `✓ Đã khóa tài khoản của "${maNV}".` : `✓ Đã mở khóa tài khoản cho "${maNV}".`, "success");
+          await taiDanhSachAccounts();
+        } else {
+          showToast(`Thao tác thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+        }
+      } catch (err) {
+        showToast(`Lỗi: ${err.message || err}`, "error");
+      }
+      return;
+    }
+
+    // Nút Chỉnh sửa thông tin nhân viên
+    const btnEdit = e.target.closest(".btn-edit-account");
+    if (btnEdit) {
+      const maNV = btnEdit.dataset.manv;
+      const acc = manageAccounts.find((a) => a.ma_nv === maNV);
+      if (acc) {
+        moModalUpsertEmployee(acc);
+      }
+      return;
+    }
+
+    // Nút Xóa tài khoản / nhân viên
+    const btnDelete = e.target.closest(".btn-delete-account");
+    if (btnDelete) {
+      const maNV = btnDelete.dataset.manv;
+      const userId = btnDelete.dataset.userid;
+      const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+
+      const xacNhan = await showConfirmModal({
+        title: "Xác nhận xóa tài khoản",
+        message: `Xóa tài khoản của "${maNV}" khỏi hệ thống?\n\nNhân viên sẽ không thể đăng nhập portal nữa. Bạn có thể cấp lại tài khoản sau nếu cần.`,
+        confirmLabel: "Xóa tài khoản",
+      });
+      if (!xacNhan) return;
+
+      try {
+        const res = await window.api.xoaTaiKhoanPortal({
+          supabaseUrl,
+          serviceRoleKey,
+          maNV,
+          userId,
+          deleteEmployeeRecord: false,
+        });
+        if (res && res.ok) {
+          selectedAccountIds.delete(maNV);
+          showToast(`✓ Đã xóa tài khoản của "${maNV}".`, "success");
+          await taiDanhSachAccounts();
+        } else {
+          showToast(`Xóa thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+        }
+      } catch (err) {
+        showToast(`Lỗi: ${err.message || err}`, "error");
+      }
+      return;
+    }
+  });
+
+  // Tác vụ hàng loạt: Cấp tài khoản cho các NV đã chọn
+  $("btnCapTaiKhoanChon")?.addEventListener("click", async () => {
+    const selectedList = manageAccounts.filter((a) => selectedAccountIds.has(a.ma_nv) && !a.has_account);
+    if (!selectedList.length) {
+      showToast("Tất cả các nhân viên đã chọn đều đã có tài khoản.", "info");
+      return;
+    }
+
+    const xacNhan = await showConfirmModal({
+      title: "Cấp tài khoản hàng loạt",
+      message: `Tạo tài khoản Portal cho ${selectedList.length} nhân viên chưa có tài khoản?\nMật khẩu ban đầu sẽ được gán mặc định theo mã NV.`,
+      confirmLabel: "Cấp tài khoản",
+    });
+    if (!xacNhan) return;
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      $("btnCapTaiKhoanChon").disabled = true;
+      const res = await window.api.taoTaiKhoanHangLoatPortal({
+        supabaseUrl,
+        serviceRoleKey,
+        employees: selectedList,
+      });
+      if (res && res.ok) {
+        showToast(`✓ Đã cấp thành công ${res.successCount} tài khoản!${res.failCount > 0 ? ` (${res.failCount} lỗi)` : ""}`, "success");
+        await taiDanhSachAccounts();
+      } else {
+        showToast(`Cấp tài khoản thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+      }
+    } catch (err) {
+      showToast(`Lỗi: ${err.message || err}`, "error");
+    } finally {
+      if ($("btnCapTaiKhoanChon")) $("btnCapTaiKhoanChon").disabled = false;
+    }
+  });
+
+  // Tác vụ hàng loạt: Reset pass mặc định
+  $("btnResetPassChon")?.addEventListener("click", async () => {
+    const selectedList = manageAccounts.filter((a) => selectedAccountIds.has(a.ma_nv) && a.has_account);
+    if (!selectedList.length) {
+      showToast("Không có tài khoản nào được chọn để đặt lại mật khẩu.", "info");
+      return;
+    }
+
+    const xacNhan = await showConfirmModal({
+      title: "Đặt lại mật khẩu hàng loạt",
+      message: `Khôi phục mật khẩu mặc định (theo mã NV) cho ${selectedList.length} tài khoản đã chọn?\n\nNhân viên sẽ được yêu cầu đổi mật khẩu mới trong lần đăng nhập tiếp theo.`,
+      confirmLabel: "Đặt lại mật khẩu",
+    });
+    if (!xacNhan) return;
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      $("btnResetPassChon").disabled = true;
+      const res = await window.api.datLaiMatKhauHangLoatPortal({
+        supabaseUrl,
+        serviceRoleKey,
+        accounts: selectedList,
+      });
+      if (res && res.ok) {
+        showToast(`✓ Đã đặt lại mật khẩu mặc định cho ${res.count} tài khoản thành công!`, "success");
+        await taiDanhSachAccounts();
+      } else {
+        showToast(`Đặt lại mật khẩu thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+      }
+    } catch (err) {
+      showToast(`Lỗi: ${err.message || err}`, "error");
+    } finally {
+      if ($("btnResetPassChon")) $("btnResetPassChon").disabled = false;
+    }
+  });
+
+  // Tác vụ hàng loạt: Khóa các tài khoản đã chọn
+  $("btnKhoaChonAccounts")?.addEventListener("click", async () => {
+    const selectedList = manageAccounts.filter((a) => selectedAccountIds.has(a.ma_nv) && a.has_account && a.user_id);
+    if (!selectedList.length) return;
+
+    const xacNhan = await showConfirmModal({
+      title: "Khóa tài khoản hàng loạt",
+      message: `Khóa ${selectedList.length} tài khoản đã chọn?\nCác nhân viên này sẽ không thể đăng nhập Portal cho đến khi được mở khóa.`,
+      confirmLabel: "Khóa đã chọn",
+    });
+    if (!xacNhan) return;
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      $("btnKhoaChonAccounts").disabled = true;
+      let count = 0;
+      for (const acc of selectedList) {
+        try {
+          await window.api.khoaTaiKhoanPortal({
+            supabaseUrl,
+            serviceRoleKey,
+            userId: acc.user_id,
+            ban: true,
+          });
+          count++;
+        } catch { /* tiếp tục */ }
+      }
+      showToast(`✓ Đã khóa thành công ${count} tài khoản.`, "success");
+      await taiDanhSachAccounts();
+    } catch (err) {
+      showToast(`Lỗi: ${err.message || err}`, "error");
+    } finally {
+      if ($("btnKhoaChonAccounts")) $("btnKhoaChonAccounts").disabled = false;
+    }
+  });
+
+  // Tác vụ hàng loạt: Xóa tài khoản đã chọn
+  $("btnXoaChonAccounts")?.addEventListener("click", async () => {
+    const selectedList = manageAccounts.filter((a) => selectedAccountIds.has(a.ma_nv));
+    if (!selectedList.length) return;
+
+    const xacNhan = await showConfirmModal({
+      title: "Xác nhận xóa tài khoản hàng loạt",
+      message: `Xóa tài khoản của ${selectedList.length} nhân viên đã chọn?\nNhân viên sẽ không thể đăng nhập Portal nữa.`,
+      confirmLabel: "Xóa tài khoản",
+    });
+    if (!xacNhan) return;
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      $("btnXoaChonAccounts").disabled = true;
+      const res = await window.api.xoaTaiKhoanHangLoatPortal({
+        supabaseUrl,
+        serviceRoleKey,
+        items: selectedList,
+        deleteEmployeeRecord: false,
+      });
+      if (res && res.ok) {
+        selectedAccountIds.clear();
+        showToast(`✓ Đã xóa thành công ${res.count} tài khoản.`, "success");
+        await taiDanhSachAccounts();
+      } else {
+        showToast(`Xóa thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+      }
+    } catch (err) {
+      showToast(`Lỗi: ${err.message || err}`, "error");
+    } finally {
+      if ($("btnXoaChonAccounts")) $("btnXoaChonAccounts").disabled = false;
+    }
+  });
+
+  // Xuất file CSV danh sách tài khoản
+  $("btnXuatCsvAccounts")?.addEventListener("click", () => {
+    const list = getFilteredAccounts();
+    if (!list.length) {
+      showToast("Không có dữ liệu tài khoản để xuất.", "warning");
+      return;
+    }
+
+    const headers = [
+      "Mã NV",
+      "Họ và tên",
+      "Bộ phận",
+      "Khối",
+      "Cơ sở",
+      "Tài khoản Portal",
+      "Mật khẩu mặc định",
+      "Trạng thái tài khoản",
+      "Số phiếu lương",
+      "Đăng nhập lần cuối",
+    ];
+
+    const escapeCsv = (val) => {
+      const str = String(val ?? "").replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows = list.map((a) => {
+      let statusStr = "Chưa cấp tài khoản";
+      if (a.is_banned) statusStr = "Đang bị khóa";
+      else if (a.has_account && a.password_changed) statusStr = "Đã đổi mật khẩu cá nhân (Đang hoạt động)";
+      else if (a.has_account && !a.password_changed) statusStr = "Đang dùng mật khẩu mặc định";
+
+      return [
+        escapeCsv(a.ma_nv),
+        escapeCsv(a.ho_ten || a.ma_nv),
+        escapeCsv(a.bo_phan || ""),
+        escapeCsv(a.khoi || ""),
+        escapeCsv(a.co_so || ""),
+        escapeCsv(a.email),
+        escapeCsv(a.default_password || ""),
+        escapeCsv(statusStr),
+        escapeCsv(a.payslip_count || 0),
+        escapeCsv(formatNgayGioVi(a.last_sign_in_at)),
+      ].join(",");
+    });
+
+    const csvContent = "\uFEFF" + headers.map(escapeCsv).join(",") + "\n" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Danh_sach_tai_khoan_Portal_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✓ Đã xuất danh sách ${list.length} tài khoản ra file CSV!`, "success");
+  });
+
+  // Modal Reset Password Logic
+  function moModalResetPassword({ maNV, hoTen, userId, defaultPass }) {
+    currentResetTarget = { maNV, hoTen, userId, defaultPass };
+    const modal = $("modalResetPassword");
+    if (!modal) return;
+    if ($("resetPassEmpName")) $("resetPassEmpName").textContent = hoTen;
+    if ($("resetPassEmpCode")) $("resetPassEmpCode").textContent = maNV;
+    if ($("resetPassDefaultVal")) $("resetPassDefaultVal").textContent = defaultPass;
+    const radDefault = document.querySelector('input[name="radResetPassType"][value="default"]');
+    if (radDefault) radDefault.checked = true;
+    const inputCustom = $("resetPassCustomInput");
+    if (inputCustom) {
+      inputCustom.value = "";
+      inputCustom.disabled = true;
+    }
+    modal.hidden = false;
+    modal.style.display = "flex";
+  }
+
+  function dongModalResetPassword() {
+    const modal = $("modalResetPassword");
+    if (!modal) return;
+    modal.hidden = true;
+    modal.style.display = "none";
+    currentResetTarget = null;
+  }
+
+  document.querySelectorAll('input[name="radResetPassType"]').forEach((rad) => {
+    rad.addEventListener("change", (e) => {
+      const isCustom = e.target.value === "custom";
+      const input = $("resetPassCustomInput");
+      if (input) {
+        input.disabled = !isCustom;
+        if (isCustom) input.focus();
+      }
+    });
+  });
+
+  $("modalResetPassCancelBtn")?.addEventListener("click", dongModalResetPassword);
+
+  $("modalResetPassConfirmBtn")?.addEventListener("click", async () => {
+    if (!currentResetTarget) return;
+    const radCustom = document.querySelector('input[name="radResetPassType"][value="custom"]');
+    const isCustom = radCustom && radCustom.checked;
+    const customPass = $("resetPassCustomInput")?.value?.trim() || "";
+
+    if (isCustom && customPass.length < 6) {
+      showToast("Mật khẩu mới tùy chọn phải có ít nhất 6 ký tự.", "warning");
+      $("resetPassCustomInput")?.focus();
+      return;
+    }
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      const btn = $("modalResetPassConfirmBtn");
+      btn.disabled = true;
+      btn.textContent = "Đang xử lý…";
+
+      const res = await window.api.datLaiMatKhauPortal({
+        supabaseUrl,
+        serviceRoleKey,
+        userId: currentResetTarget.userId,
+        maNV: currentResetTarget.maNV,
+        newPassword: isCustom ? customPass : null,
+      });
+
+      if (res && res.ok) {
+        dongModalResetPassword();
+        showToast(`✓ Đã đặt lại mật khẩu cho "${currentResetTarget.maNV}" thành công (Mật khẩu mới: ${res.newPassword}).`, "success", 6000);
+        await taiDanhSachAccounts();
+      } else {
+        showToast(`Đặt lại mật khẩu thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+      }
+    } catch (err) {
+      showToast(`Lỗi: ${err.message || err}`, "error");
+    } finally {
+      const btn = $("modalResetPassConfirmBtn");
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Đặt lại mật khẩu";
+      }
+    }
+  });
+
+  // Modal Thêm / Sửa nhân viên Logic
+  function moModalUpsertEmployee(employee = null) {
+    currentUpsertTarget = employee;
+    const modal = $("modalUpsertEmployee");
+    if (!modal) return;
+
+    const isEdit = !!employee;
+    if ($("modalUpsertTitle")) $("modalUpsertTitle").textContent = isEdit ? `✏️ Chỉnh sửa thông tin (${employee.ma_nv})` : "➕ Thêm nhân viên mới";
+    if ($("upsertMaNV")) {
+      $("upsertMaNV").value = isEdit ? employee.ma_nv : "";
+      $("upsertMaNV").disabled = isEdit;
+    }
+    if ($("upsertHoTen")) $("upsertHoTen").value = isEdit ? employee.ho_ten : "";
+    if ($("upsertBoPhan")) $("upsertBoPhan").value = isEdit ? employee.bo_phan : "";
+    if ($("upsertKhoi")) $("upsertKhoi").value = isEdit ? employee.khoi : "";
+    if ($("upsertCoSo")) $("upsertCoSo").value = isEdit ? employee.co_so : "";
+
+    const authSection = $("upsertAuthSection");
+    if (authSection) {
+      authSection.style.display = isEdit && employee.has_account ? "none" : "block";
+    }
+    capNhatUpsertPreviewEmail();
+
+    modal.hidden = false;
+    modal.style.display = "flex";
+  }
+
+  function dongModalUpsertEmployee() {
+    const modal = $("modalUpsertEmployee");
+    if (!modal) return;
+    modal.hidden = true;
+    modal.style.display = "none";
+    currentUpsertTarget = null;
+  }
+
+  function capNhatUpsertPreviewEmail() {
+    const maNV = $("upsertMaNV")?.value?.trim() || "";
+    const previewEl = $("upsertPreviewEmail");
+    if (previewEl) {
+      previewEl.textContent = maNV ? `${maNV.toLowerCase()}@hehehr.internal` : "chưa nhập mã NV";
+    }
+  }
+
+  $("upsertMaNV")?.addEventListener("input", capNhatUpsertPreviewEmail);
+  $("modalUpsertCancelBtn")?.addEventListener("click", dongModalUpsertEmployee);
+
+  $("btnThemNhanVienAccount")?.addEventListener("click", () => {
+    moModalUpsertEmployee(null);
+  });
+
+  $("modalUpsertConfirmBtn")?.addEventListener("click", async () => {
+    const maNV = $("upsertMaNV")?.value?.trim();
+    const hoTen = $("upsertHoTen")?.value?.trim();
+    const boPhan = $("upsertBoPhan")?.value?.trim() || "";
+    const khoi = $("upsertKhoi")?.value?.trim() || "";
+    const coSo = $("upsertCoSo")?.value?.trim() || "";
+    const createAuth = $("upsertChkCreateAccount")?.checked ?? true;
+
+    if (!maNV) {
+      showToast("Vui lòng nhập Mã nhân viên.", "warning");
+      $("upsertMaNV")?.focus();
+      return;
+    }
+    if (!hoTen) {
+      showToast("Vui lòng nhập Họ và tên nhân viên.", "warning");
+      $("upsertHoTen")?.focus();
+      return;
+    }
+
+    const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+    try {
+      const btn = $("modalUpsertConfirmBtn");
+      btn.disabled = true;
+      btn.textContent = "Đang lưu…";
+
+      const res = await window.api.luuNhanVienPortal({
+        supabaseUrl,
+        serviceRoleKey,
+        employee: { ma_nv: maNV, ho_ten: hoTen, bo_phan: boPhan, khoi, co_so: coSo },
+        createAuthAccount: createAuth,
+      });
+
+      if (res && res.ok) {
+        dongModalUpsertEmployee();
+        showToast(`✓ Đã lưu thông tin nhân viên "${maNV}" thành công!`, "success");
+        await taiDanhSachAccounts();
+      } else {
+        showToast(`Lưu thất bại: ${(res && res.error) || "Lỗi"}`, "error");
+      }
+    } catch (err) {
+      showToast(`Lỗi: ${err.message || err}`, "error");
+    } finally {
+      const btn = $("modalUpsertConfirmBtn");
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Lưu thông tin";
+      }
+    }
+  });
+}
+
+// ============================================================
 // ĐIỀU HƯỚNG TABS NAVBAR (4 CHỨC NĂNG CHÍNH + CÀI ĐẶT)
 // ============================================================
 let currentTab = "home";
@@ -3154,7 +4084,7 @@ function switchTab(tabId) {
   if (!tabId) return;
 
   // Bắt buộc kiểm tra đồng thời: Phải nhập Tháng lương và nạp file Excel trước khi vào các tab làm việc của kỳ lương
-  if (tabId !== "home" && tabId !== "settings" && tabId !== "manage") {
+  if (tabId !== "home" && tabId !== "settings" && tabId !== "manage" && tabId !== "accounts") {
     const thangNamVal = $("thangNam")?.value?.trim();
     if (!thangNamVal) {
       showToast("⚠ Vui lòng nhập Tháng lương trước!", "warning");
@@ -3171,7 +4101,7 @@ function switchTab(tabId) {
     }
   }
 
-  if (currentTab !== "settings" && currentTab !== "manage") previousTab = currentTab;
+  if (currentTab !== "settings" && currentTab !== "manage" && currentTab !== "accounts") previousTab = currentTab;
   currentTab = tabId;
 
   // Cập nhật trạng thái active trên các nút Navbar
@@ -3204,6 +4134,8 @@ function switchTab(tabId) {
     capNhatTrangThaiNutPortal();
   } else if (tabId === "manage") {
     taiDanhSachManage();
+  } else if (tabId === "accounts") {
+    taiDanhSachAccounts();
   } else if (tabId === "settings") {
     capNhatTrangThaiNutPortal();
   }
@@ -3284,6 +4216,7 @@ wirePdfTableEvents();
 wireEmailHistoryEvents();
 wirePortalTableEvents();
 wireManageEvents();
+wireAccountEvents();
 capNhatTrangThaiNutXuat();
 renderEmailHistoryTable();
 renderDashboard();

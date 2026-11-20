@@ -44,6 +44,10 @@
           title="Quản lý phiếu lương đã tải lên Web (Thu hồi / Xóa)">
           <span>🗂️</span> Quản lý phiếu lương
         </button>
+        <button type="button" id="btnMoQuanLyTaiKhoan" class="topbar-btn"
+          title="Quản lý tài khoản Portal nhân viên (Mật khẩu, Cấp quyền, Khóa TK)">
+          <span>👥</span> Quản lý tài khoản
+        </button>
         <button type="button" id="btnMoCaiDat" class="topbar-btn"
           title="Cài đặt hệ thống (Gmail, Supabase, Tên công ty...)">
           <span>⚙️</span> Cài đặt
@@ -592,6 +596,16 @@
              ============================================================ -->
       <div class="tab-page" data-page="manage" id="pageManage" hidden>
         <div class="panel page-panel">
+          <!-- Thanh điều hướng phụ: Phiếu lương / Tài khoản -->
+          <div class="portal-subnav">
+            <button type="button" class="subnav-tab active" id="btnSubnavManagePayslips">
+              <span>🗂️</span> Phiếu lương online
+            </button>
+            <button type="button" class="subnav-tab" id="btnSubnavManageAccounts">
+              <span>👥</span> Tài khoản nhân viên
+            </button>
+          </div>
+
           <!-- Header hàng tiêu đề & tác vụ -->
           <div class="panel-header-row">
             <div>
@@ -729,6 +743,179 @@
             <div style="font-size: 36px;">📭</div>
             <p style="margin-top: 8px; font-weight: 600; color: var(--text-muted);" id="manageEmptyMsg">
               Không có phiếu lương nào trên hệ thống hoặc không khớp bộ lọc.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+             TRANG 5C: QUẢN LÝ TÀI KHOẢN NHÂN VIÊN TRÊN WEB PORTAL (SUPABASE)
+             ============================================================ -->
+      <div class="tab-page" data-page="accounts" id="pageAccounts" hidden>
+        <div class="panel page-panel">
+          <!-- Thanh điều hướng phụ: Phiếu lương / Tài khoản -->
+          <div class="portal-subnav">
+            <button type="button" class="subnav-tab" id="btnSubnavAccountsPayslips">
+              <span>🗂️</span> Phiếu lương online
+            </button>
+            <button type="button" class="subnav-tab active" id="btnSubnavAccountsAccounts">
+              <span>👥</span> Tài khoản nhân viên
+            </button>
+          </div>
+
+          <!-- Header hàng tiêu đề & tác vụ -->
+          <div class="panel-header-row">
+            <div>
+              <div class="panel-title" style="display:flex;align-items:center;gap:8px">
+                <span>👥 Quản lý tài khoản nhân viên</span>
+                <span class="panel-subtitle" id="soLuongAccountsTongLabel">0 tài khoản</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn-primary" id="btnThemNhanVienAccount" type="button"
+                style="padding:6px 14px;font-size:12.5px" title="Thêm nhân viên mới hoặc cấp tài khoản Portal">
+                ➕ Thêm nhân viên
+              </button>
+              <button class="secondary-btn" id="btnLamMoiAccounts" type="button"
+                title="Tải lại danh sách tài khoản từ Supabase">
+                🔄 Làm mới dữ liệu
+              </button>
+            </div>
+          </div>
+
+          <!-- Cảnh báo nếu chưa cấu hình Supabase -->
+          <div id="accountsNoConfigWarning" class="alert-box warning" hidden style="margin-bottom:14px;display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div>
+                <strong>⚠️ Chưa cấu hình Supabase:</strong> Vui lòng nhập Project URL và Service Role Key trong Cài đặt
+                để quản lý tài khoản nhân viên.
+              </div>
+              <button type="button" class="btn-primary" id="btnAccountsDiDenCaiDat"
+                style="padding:6px 14px;font-size:12px">
+                ⚙️ Đi đến Cài đặt
+              </button>
+            </div>
+          </div>
+
+          <!-- Dải thẻ KPI thống kê tài khoản -->
+          <div class="filter-summary-cards" style="grid-template-columns: repeat(5, 1fr); margin-bottom:14px">
+            <div class="metric-card">
+              <span class="metric-label">Tổng nhân viên</span>
+              <strong class="metric-val" id="soLuongAccountsTong">0</strong>
+            </div>
+            <div class="metric-card" style="border-left: 3px solid #10b981">
+              <span class="metric-label" style="color:#065f46">🟢 Đã đổi mật khẩu</span>
+              <strong class="metric-val" id="soLuongAccountsPasswordChanged" style="color:#10b981">0</strong>
+            </div>
+            <div class="metric-card" style="border-left: 3px solid #f59e0b">
+              <span class="metric-label" style="color:#b45309">🟡 Pass mặc định</span>
+              <strong class="metric-val" id="soLuongAccountsDefaultPass" style="color:#f59e0b">0</strong>
+            </div>
+            <div class="metric-card" style="border-left: 3px solid #6b7280">
+              <span class="metric-label" style="color:#4b5563">⚪ Chưa cấp TK</span>
+              <strong class="metric-val" id="soLuongAccountsNoAccount" style="color:#6b7280">0</strong>
+            </div>
+            <div class="metric-card" style="border-left: 3px solid #ef4444">
+              <span class="metric-label" style="color:#991b1b">🔒 Đang bị khóa</span>
+              <strong class="metric-val" id="soLuongAccountsBanned" style="color:#ef4444">0</strong>
+            </div>
+          </div>
+
+          <!-- Toolbar lọc & tìm kiếm -->
+          <div class="filter-bar">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input id="oTimKiemAccounts" type="text" placeholder="Tìm theo Mã NV, Họ tên, Email, Bộ phận..." />
+            </div>
+            <div class="filter-selects-group">
+              <select id="locBoPhanAccounts">
+                <option value="">Tất cả bộ phận</option>
+              </select>
+              <select id="locTrangThaiAccounts">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="has_account">✅ Đã có tài khoản</option>
+                <option value="password_changed">🟢 Đã đổi mật khẩu cá nhân</option>
+                <option value="default_pass">🟡 Đang dùng pass mặc định</option>
+                <option value="no_account">⚪ Chưa cấp tài khoản</option>
+                <option value="banned">🔒 Tài khoản bị khóa</option>
+              </select>
+              <select id="locSapXepAccounts" title="Sắp xếp danh sách">
+                <option value="ma_nv_asc">Mã NV (A → Z)</option>
+                <option value="ma_nv_desc">Mã NV (Z → A)</option>
+                <option value="ho_ten_asc">Họ tên (A → Z)</option>
+                <option value="ho_ten_desc">Họ tên (Z → A)</option>
+                <option value="bo_phan_asc">Bộ phận (A → Z)</option>
+                <option value="last_sign_in_desc">Đăng nhập mới nhất</option>
+                <option value="payslip_count_desc">Nhiều phiếu lương nhất</option>
+              </select>
+              <button class="ghost-btn" id="btnResetLocAccounts" type="button">Xóa lọc</button>
+              <button class="ghost-btn" id="btnXuatCsvAccounts" type="button" title="Xuất danh sách tài khoản ra file CSV để chia sẻ">
+                📥 Xuất CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- Thanh hành động hàng loạt -->
+          <div class="manage-batch-actions" id="accountsBatchBar">
+            <div style="font-size:12.5px;font-weight:600;color:var(--text)">
+              Đã chọn: <strong id="lblSoLuongAccountsChon">0</strong> nhân viên
+            </div>
+            <div style="display:flex;gap:8px">
+              <button type="button" class="btn-primary" id="btnCapTaiKhoanChon"
+                style="padding:5px 12px;font-size:12px" title="Cấp tài khoản cho các nhân viên đã chọn chưa có tài khoản" disabled>
+                ⚡ Cấp tài khoản đã chọn
+              </button>
+              <button type="button" class="secondary-btn" id="btnResetPassChon"
+                title="Khôi phục mật khẩu mặc định (mã NV) cho các tài khoản đã chọn" disabled>
+                🔑 Đặt lại pass mặc định
+              </button>
+              <button type="button" class="ghost-btn" id="btnKhoaChonAccounts"
+                style="color:var(--warning);border-color:rgba(245,158,11,0.3)"
+                title="Khóa các tài khoản đã chọn" disabled>
+                🔒 Khóa tài khoản
+              </button>
+              <button type="button" class="ghost-btn" id="btnXoaChonAccounts"
+                style="color:var(--danger);border-color:rgba(239,68,68,0.3)"
+                title="Xóa tài khoản đã chọn" disabled>
+                🗑️ Xóa tài khoản
+              </button>
+            </div>
+          </div>
+
+          <!-- Bảng danh sách tài khoản -->
+          <div class="table-container" style="max-height: 480px; overflow-y: auto; margin-top: 10px;">
+            <table class="data-table" id="bangAccountsTable">
+              <thead>
+                <tr>
+                  <th style="width: 44px; text-align: center;">
+                    <input type="checkbox" id="chkAccountsChonTatCa" title="Chọn / Bỏ chọn tất cả" />
+                  </th>
+                  <th class="sortable" data-sort-key="stt" style="width: 50px; text-align: center;">STT<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="ma_nv" style="width: 95px;">Mã NV<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="ho_ten" style="min-width: 140px;">Họ và tên<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="bo_phan" style="min-width: 120px;">Bộ phận<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="email" style="min-width: 170px;">Tài khoản đăng nhập<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="status" style="width: 145px; text-align: center;">Trạng thái TK<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="payslip_count" style="width: 95px; text-align: center;">Phiếu lương<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-sort-key="last_sign_in_at" style="width: 135px;">Đăng nhập cuối<span class="sort-arrow"></span></th>
+                  <th style="min-width: 220px; text-align: center;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="bangAccountsBody">
+                <!-- Sẽ render bằng JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Loading state hoặc Empty state -->
+          <div id="accountsLoading" style="text-align: center; padding: 36px 20px; display: none;">
+            <div style="font-size: 28px; animation: updateSpin 1.2s linear infinite; display: inline-block;">⏳</div>
+            <p style="margin-top: 8px; font-weight: 600; color: var(--text-muted);">Đang tải danh sách tài khoản từ Supabase...</p>
+          </div>
+          <div id="accountsEmpty" style="text-align: center; padding: 40px 20px; display: none;">
+            <div style="font-size: 36px;">👥</div>
+            <p style="margin-top: 8px; font-weight: 600; color: var(--text-muted);" id="accountsEmptyMsg">
+              Chưa có nhân viên nào trong cơ sở dữ liệu Supabase.
             </p>
           </div>
         </div>
@@ -905,6 +1092,82 @@
       <div class="modal-actions">
         <button type="button" class="ghost-btn" id="modalCancelBtn">Hủy</button>
         <button type="button" id="modalConfirmBtn">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ĐẶT LẠI MẬT KHẨU TÀI KHOẢN -->
+  <div class="modal-overlay" id="modalResetPassword" hidden style="display:none">
+    <div class="modal-box" style="max-width:440px" role="dialog" aria-modal="true">
+      <div class="modal-title">🔑 Đặt lại mật khẩu Portal</div>
+      <div style="margin:12px 0 16px;font-size:13px;color:var(--text-muted)">
+        Nhân viên: <strong id="resetPassEmpName" style="color:var(--text)"></strong> (<span id="resetPassEmpCode"></span>)
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="radResetPassType" value="default" checked style="margin-top:3px" />
+          <div>
+            <strong>Đặt về mật khẩu mặc định:</strong>
+            <span id="resetPassDefaultVal" style="font-family:monospace;background:var(--bg-hover);padding:2px 6px;border-radius:4px;font-weight:700"></span>
+            <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">Bắt buộc nhân viên đổi mật khẩu mới ở lần đăng nhập tiếp theo.</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="radResetPassType" value="custom" style="margin-top:3px" />
+          <div style="width:100%">
+            <strong>Đặt mật khẩu mới tùy chọn:</strong>
+            <input type="text" id="resetPassCustomInput" placeholder="Tối thiểu 6 ký tự..." disabled
+              style="width:100%;margin-top:6px;padding:6px 10px;font-size:13px;border-radius:6px;border:1px solid var(--border)" />
+          </div>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="modalResetPassCancelBtn">Hủy</button>
+        <button type="button" class="btn-primary" id="modalResetPassConfirmBtn">Đặt lại mật khẩu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL THÊM / SỬA NHÂN VIÊN & TÀI KHOẢN -->
+  <div class="modal-overlay" id="modalUpsertEmployee" hidden style="display:none">
+    <div class="modal-box" style="max-width:480px" role="dialog" aria-modal="true">
+      <div class="modal-title" id="modalUpsertTitle">➕ Thêm nhân viên mới</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin:14px 0 18px">
+        <div>
+          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Mã nhân viên <span style="color:var(--danger)">*</span></label>
+          <input type="text" id="upsertMaNV" placeholder="Ví dụ: NV001" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+        </div>
+        <div>
+          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Họ và tên <span style="color:var(--danger)">*</span></label>
+          <input type="text" id="upsertHoTen" placeholder="Ví dụ: Nguyễn Văn A" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Bộ phận</label>
+            <input type="text" id="upsertBoPhan" placeholder="Ví dụ: Kinh doanh" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+          </div>
+          <div>
+            <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Khối</label>
+            <input type="text" id="upsertKhoi" placeholder="Ví dụ: Khối Văn phòng" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:4px">Cơ sở / Chi nhánh</label>
+          <input type="text" id="upsertCoSo" placeholder="Ví dụ: Trụ sở chính" style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border)" />
+        </div>
+        <div id="upsertAuthSection" style="padding:10px 12px;background:var(--bg-hover);border-radius:8px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
+            <input type="checkbox" id="upsertChkCreateAccount" checked />
+            <span>Tự động cấp tài khoản Portal cho nhân viên này</span>
+          </label>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">
+            Tài khoản đăng nhập: <code id="upsertPreviewEmail" style="font-weight:700">chưa nhập mã NV</code>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="modalUpsertCancelBtn">Hủy</button>
+        <button type="button" class="btn-primary" id="modalUpsertConfirmBtn">Lưu thông tin</button>
       </div>
     </div>
   </div>
