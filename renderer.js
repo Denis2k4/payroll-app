@@ -2297,7 +2297,7 @@ function capNhatThanhTienDoPortal({ daXong, tongSo, maNV, trangThai }) {
   if (maNV && $("portalUploadStatus")) {
     $("portalUploadStatus").textContent =
       trangThai === "uploading"
-        ? `Đang tạo PDF & upload cho ${maNV}...`
+        ? `Đang đồng bộ phiếu lương cho ${maNV}...`
         : `Đã xử lý: ${maNV}`;
   }
 }
