@@ -2729,7 +2729,9 @@ function renderManageTable() {
 }
 
 const SQL_MIGRATION_TEXT = `ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active';
-ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS revoked_at timestamptz;`;
+ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS revoked_at timestamptz;
+ALTER TABLE public.payslips ADD COLUMN IF NOT EXISTS data jsonb;
+ALTER TABLE public.payslips ALTER COLUMN pdf_path DROP NOT NULL;`;
 
 function hienModalSqlMigration() {
   const modal = $("sqlMigrationModal");

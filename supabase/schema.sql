@@ -30,19 +30,23 @@ create table if not exists public.payslips (
   ma_nv       text not null references public.employees(ma_nv) on delete cascade,
   thang_nam   text not null,          -- "06/2026"
   ten_cong_ty text,
-  pdf_path    text not null,          -- đường dẫn trong Storage bucket
+  pdf_path    text,                   -- đường dẫn trong Storage bucket (nếu có)
+  data        jsonb,                  -- toàn bộ dữ liệu phiếu lương dạng JSON
   uploaded_at timestamptz default now(),
   status      text not null default 'active', -- 'active' (đang phát hành) | 'revoked' (đã thu hồi)
   revoked_at  timestamptz,
   unique(ma_nv, thang_nam)
 );
 
--- Tự động thêm cột status và revoked_at nếu bảng đã được tạo trước đó:
+-- Tự động thêm cột status, revoked_at và data nếu bảng đã được tạo trước đó:
 alter table public.payslips add column if not exists status text not null default 'active';
 alter table public.payslips add column if not exists revoked_at timestamptz;
+alter table public.payslips add column if not exists data jsonb;
+alter table public.payslips alter column pdf_path drop not null;
 
 comment on table public.payslips is 'Phiếu lương đã upload lên portal';
-comment on column public.payslips.pdf_path is 'Đường dẫn file PDF trong bucket: payslips/{ma_nv}/{thang_nam_slug}.pdf';
+comment on column public.payslips.pdf_path is 'Đường dẫn file PDF trong bucket: payslips/{ma_nv}/{thang_nam_slug}.pdf (nếu có)';
+comment on column public.payslips.data is 'Dữ liệu phiếu lương chi tiết dạng JSONB (cho phép hiển thị HTML siêu tốc và in PDF)';
 comment on column public.payslips.status is 'Trạng thái phiếu lương: active (đang phát hành) hoặc revoked (đã thu hồi)';
 comment on column public.payslips.revoked_at is 'Thời điểm thu hồi phiếu lương';
 

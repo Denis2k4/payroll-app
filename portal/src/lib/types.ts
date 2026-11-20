@@ -5,8 +5,11 @@ export interface Payslip {
   ma_nv: string
   thang_nam: string
   ten_cong_ty?: string
-  pdf_path: string
+  pdf_path?: string | null
+  data?: any
   uploaded_at?: string
+  status?: string
+  revoked_at?: string | null
   employee_id?: string
   company_name?: string
   month?: number

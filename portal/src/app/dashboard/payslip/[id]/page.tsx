@@ -5,6 +5,7 @@ import { createClient } from '../../../../lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import PayslipViewer from './PayslipViewer'
+import PayslipHtmlViewer from './PayslipHtmlViewer'
 
 interface PageProps {
   params: { id: string }
@@ -45,7 +46,25 @@ export default async function PayslipDetailPage({ params }: PageProps) {
     redirect('/dashboard')
   }
 
-  // Tạo signed URL 1 giờ để xem file PDF
+  const monthLabel = payslip.month ? MONTHS_VI[payslip.month] : ''
+  const periodLabel = monthLabel ? `${monthLabel} ${payslip.year}` : (payslip.thang_nam || '')
+
+  // 1. NẾU LÀ PHIẾU LƯƠNG DẠNG JSON: Hiển thị giao diện HTML siêu tốc không cần tải file PDF
+  const payslipData = payslip.data
+  const htmlContent = payslipData?.html || (typeof payslipData === 'string' && payslipData.includes('<') ? payslipData : null)
+
+  if (htmlContent) {
+    return (
+      <PayslipHtmlViewer
+        html={htmlContent}
+        maNV={maNV}
+        periodLabel={periodLabel}
+        tenCongTy={payslip.ten_cong_ty}
+      />
+    )
+  }
+
+  // 2. NẾU LÀ PHIẾU LƯƠNG CŨ (PDF STORAGE): Tạo signed URL để xem qua PDF.js
   const rawPath = payslip.pdf_path || payslip.file_path || ''
   const cleanPath = rawPath.replace(/^payslips\//, '')
   const { data: signedData, error: signedError } = await supabase.storage
@@ -53,9 +72,6 @@ export default async function PayslipDetailPage({ params }: PageProps) {
     .createSignedUrl(cleanPath, 3600)
 
   const pdfUrl = signedData?.signedUrl || ''
-
-  const monthLabel = payslip.month ? MONTHS_VI[payslip.month] : ''
-  const periodLabel = monthLabel ? `${monthLabel} ${payslip.year}` : (payslip.thang_nam || '')
 
   if (signedError || !pdfUrl) {
     return (

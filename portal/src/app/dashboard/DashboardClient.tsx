@@ -103,6 +103,12 @@ export default function DashboardClient({ payslips, maNV, tenNV, tenCongTy, fetc
   }
 
   async function handleDownload(payslip: Payslip) {
+    // Nếu là phiếu lương dạng JSON (không có pdf_path): mở xem và tự động mở hộp thoại In / Lưu PDF
+    if (!payslip.pdf_path && payslip.data) {
+      router.push(`/dashboard/payslip/${payslip.id}?action=print`)
+      return
+    }
+
     setDownloadingId(payslip.id)
     try {
       const supabase = createClient()
@@ -113,6 +119,10 @@ export default function DashboardClient({ payslips, maNV, tenNV, tenCongTy, fetc
         .createSignedUrl(cleanPath, 3600) // 1 giờ
 
       if (error || !data?.signedUrl) {
+        if (payslip.data) {
+          router.push(`/dashboard/payslip/${payslip.id}?action=print`)
+          return
+        }
         alert('Không thể tải file. Vui lòng thử lại.')
         return
       }

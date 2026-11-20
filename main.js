@@ -1045,71 +1045,42 @@ ipcMain.handle(
     const danhSach = indexes.map((i) => danhSachNhanVien[i]).filter(Boolean);
     const total = danhSach.length;
 
-    let pdfWindow = null;
-
     try {
-      // Tạo danh sách employees kèm pdfBuffer
-      const employeesWithPdf = [];
-
-      for (let idx = 0; idx < danhSach.length; idx++) {
-        const nv = danhSach[idx];
+      // Chuẩn bị dữ liệu phiếu lương có cấu trúc dạng JSON (kèm HTML mẫu chuẩn) — siêu nhanh, không cần render PDF cửa sổ ngầm
+      const toUpload = danhSach.map((nv) => {
         const maNV = nv.maNhanVien || nv.maNV || "";
+        const templateData = buildTemplateData(nv, tenCongTy, thangNam);
+        const html = applyTemplate(getPayslipTemplateHtml(), templateData);
 
-        // Phát tiến độ tạo PDF
-        if (!event.sender.isDestroyed()) {
-          event.sender.send("upload-portal-tien-do", {
-            daXong: idx,
-            tongSo: total,
-            maNV,
-            trangThai: "uploading",
-          });
-        }
-
-        try {
-          if (!pdfWindow || pdfWindow.isDestroyed()) {
-            pdfWindow = createPdfWindow();
-          }
-          const pdfBuffer = await generatePdfBuffer(nv, tenCongTy, thangNam, pdfWindow);
-          employeesWithPdf.push({
+        return {
+          maNV,
+          hoTen: nv.hoTen || "",
+          boPhan: nv.boPhan || "",
+          khoi: nv.khoi || "",
+          coSo: nv.coSo || "",
+          thangNam,
+          tenCongTy,
+          data: {
             maNV,
             hoTen: nv.hoTen || "",
             boPhan: nv.boPhan || "",
             khoi: nv.khoi || "",
             coSo: nv.coSo || "",
-            pdfBuffer,
+            chucVu: nv.chucVu || "",
             thangNam,
-            tenCongTy,
-          });
-        } catch (err) {
-          employeesWithPdf.push({
-            maNV,
-            hoTen: nv.hoTen || "",
-            boPhan: nv.boPhan || "",
-            khoi: nv.khoi || "",
-            coSo: nv.coSo || "",
-            pdfBuffer: null,
-            thangNam,
-            tenCongTy,
-            _pdfError: err.message || String(err),
-          });
-        }
-      }
+            tenCongTy: tenCongTy || "",
+            thucNhan: nv.thucNhan || 0,
+            tongThuNhap: nv.tongThuNhap || 0,
+            tongKhauTru: nv.tongKhauTru || 0,
+            luongChinhThuc: nv.luongChinhThuc || 0,
+            luongThuViec: nv.luongThuViec || 0,
+            raw: nv,
+            templateData,
+            html,
+          },
+        };
+      });
 
-      destroyWindow(pdfWindow);
-      pdfWindow = null;
-
-      // Filter out those with PDF errors up-front and mark them as errors
-      const toUpload = [];
-      const preResults = [];
-      for (const emp of employeesWithPdf) {
-        if (emp._pdfError) {
-          preResults.push({ maNV: emp.maNV, success: false, error: `Tạo PDF thất bại: ${emp._pdfError}` });
-        } else {
-          toUpload.push(emp);
-        }
-      }
-
-      let uploadIdx = 0;
       const results = await uploadToPortal({
         supabaseUrl,
         serviceRoleKey,
@@ -1126,11 +1097,10 @@ ipcMain.handle(
         },
       });
 
-      return { ok: true, results: [...preResults, ...results] };
+      return { ok: true, results };
     } catch (err) {
       return { ok: false, error: err.message || String(err) };
     } finally {
-      destroyWindow(pdfWindow);
       activePortalJob = false;
     }
   },
