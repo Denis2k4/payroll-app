@@ -3207,7 +3207,22 @@ async function taiDanhSachAccounts() {
     });
 
     if (ketQua && ketQua.ok) {
-      manageAccounts = ketQua.data || [];
+      const rawAccounts = ketQua.data || [];
+      // 1. Chỉ giữ lại những nhân viên có dữ liệu phiếu lương trên Supabase
+      let list = rawAccounts.filter((a) => (a.payslip_count || 0) > 0);
+
+      // 2. Nếu trong ứng dụng ĐÃ NHẬP VÀO TỪ EXCEL (danhSachNhanVien có dữ liệu):
+      // Chỉ hiển thị danh sách những nhân viên đã nhập từ file Excel đó!
+      if (Array.isArray(danhSachNhanVien) && danhSachNhanVien.length > 0) {
+        const excelMaNVSet = new Set(
+          danhSachNhanVien
+            .map((nv) => String(nv.maNV || nv.maNhanVien || "").trim().toUpperCase())
+            .filter(Boolean)
+        );
+        list = list.filter((a) => excelMaNVSet.has(String(a.ma_nv || "").trim().toUpperCase()));
+      }
+
+      manageAccounts = list;
       capNhatDropdownBoPhanAccounts();
       renderAccountsTable();
     } else {
@@ -3354,9 +3369,15 @@ function renderAccountsTable() {
       emptyEl.style.display = "block";
       const emptyMsg = $("accountsEmptyMsg");
       if (emptyMsg) {
-        emptyMsg.textContent = manageAccounts.length === 0
-          ? "Chưa có nhân viên nào trong cơ sở dữ liệu Supabase."
-          : "Không tìm thấy tài khoản nào khớp với bộ lọc.";
+        if (manageAccounts.length === 0) {
+          if (Array.isArray(danhSachNhanVien) && danhSachNhanVien.length > 0) {
+            emptyMsg.textContent = "Không tìm thấy nhân viên nào trong file Excel hiện tại có dữ liệu phiếu lương trên Supabase. Vui lòng bấm 'Đồng bộ lên Web Portal' trước.";
+          } else {
+            emptyMsg.textContent = "Chưa có nhân viên nào có dữ liệu phiếu lương trên Supabase hoặc chưa chọn file Excel.";
+          }
+        } else {
+          emptyMsg.textContent = "Không tìm thấy tài khoản nào khớp với bộ lọc.";
+        }
       }
     }
     return;
@@ -3409,9 +3430,6 @@ function renderAccountsTable() {
     }
 
     actionButtons += `
-      <button type="button" class="btn-action-mini btn-edit-account" data-manv="${maNV}" data-hoten="${hoTen}" data-bophan="${escapeHtml(acc.bo_phan || "")}" data-khoi="${escapeHtml(acc.khoi || "")}" data-coso="${escapeHtml(acc.co_so || "")}" title="Chỉnh sửa thông tin nhân viên">
-        ✏️ Sửa
-      </button>
       <button type="button" class="btn-action-mini btn-danger btn-delete-account" data-manv="${maNV}" data-userid="${acc.user_id || ""}" title="Xóa tài khoản / nhân viên">
         🗑️
       </button>
@@ -4026,10 +4044,6 @@ function wireAccountEvents() {
 
   $("upsertMaNV")?.addEventListener("input", capNhatUpsertPreviewEmail);
   $("modalUpsertCancelBtn")?.addEventListener("click", dongModalUpsertEmployee);
-
-  $("btnThemNhanVienAccount")?.addEventListener("click", () => {
-    moModalUpsertEmployee(null);
-  });
 
   $("modalUpsertConfirmBtn")?.addEventListener("click", async () => {
     const maNV = $("upsertMaNV")?.value?.trim();
