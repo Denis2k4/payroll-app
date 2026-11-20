@@ -60,6 +60,11 @@ function getPayslipSortScore(p: Payslip): number {
   return 0
 }
 
+function formatMaNV(code?: string | null): string {
+  if (!code) return ''
+  return String(code).trim().replace(/lsf/gi, 'LSF')
+}
+
 function formatThangNamLabel(payslip: Payslip): string {
   if (payslip.thang_nam) {
     const tn = payslip.thang_nam.trim()
@@ -103,40 +108,87 @@ export default function DashboardClient({ payslips, maNV, tenNV, tenCongTy, fetc
   }
 
   async function handleDownload(payslip: Payslip) {
-    // Nếu là phiếu lương dạng JSON (không có pdf_path): mở xem và tự động mở hộp thoại In / Lưu PDF
-    if (!payslip.pdf_path && payslip.data) {
-      router.push(`/dashboard/payslip/${payslip.id}?action=print`)
-      return
-    }
-
     setDownloadingId(payslip.id)
     try {
-      const supabase = createClient()
-      const rawPath = payslip.pdf_path || payslip.file_path || ''
-      const cleanPath = rawPath.replace(/^payslips\//, '')
-      const { data, error } = await supabase.storage
-        .from('payslips')
-        .createSignedUrl(cleanPath, 3600) // 1 giờ
+      const label = payslip.thang_nam ? payslip.thang_nam.replace(/[\/\\]/g, '-') : `${payslip.month || ''}_${payslip.year || ''}`
+      const formattedMaNV = formatMaNV(maNV)
 
-      if (error || !data?.signedUrl) {
-        if (payslip.data) {
-          router.push(`/dashboard/payslip/${payslip.id}?action=print`)
+      // 1. Nếu có file PDF trong Storage: tải file PDF từ signed URL
+      if (payslip.pdf_path) {
+        const supabase = createClient()
+        const rawPath = payslip.pdf_path || payslip.file_path || ''
+        const cleanPath = rawPath.replace(/^payslips\//, '')
+        const { data, error } = await supabase.storage
+          .from('payslips')
+          .createSignedUrl(cleanPath, 3600) // 1 giờ
+
+        if (data?.signedUrl) {
+          const a = document.createElement('a')
+          a.href = data.signedUrl
+          a.download = `PhieuLuong_${formattedMaNV}_${label}.pdf`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
           return
         }
-        alert('Không thể tải file. Vui lòng thử lại.')
+      }
+
+      // 2. Nếu là phiếu lương dạng JSON: tải trực tiếp file HTML hoàn chỉnh về máy (không điều hướng trang)
+      const payslipData = payslip.data
+      const rawHtml = payslipData?.html || (typeof payslipData === 'string' && payslipData.includes('<') ? payslipData : null)
+
+      if (rawHtml) {
+        const fullHtml = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Phiếu lương ${formattedMaNV} - ${payslip.thang_nam || label}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #f8fafc;
+      display: flex;
+      justify-content: center;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .payslip-container {
+      width: 100%;
+      max-width: 840px;
+      background: #fff;
+      padding: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+      border-radius: 12px;
+    }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .payslip-container { max-width: 100%; box-shadow: none; border-radius: 0; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="payslip-container">
+    ${rawHtml}
+  </div>
+</body>
+</html>`
+
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `PhieuLuong_${formattedMaNV}_${label}.html`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
         return
       }
 
-      // Tạo thẻ a ẩn để download
-      const a = document.createElement('a')
-      a.href = data.signedUrl
-      const label = payslip.thang_nam ? payslip.thang_nam.replace('/', '-') : `${payslip.month || ''}_${payslip.year || ''}`
-      a.download = `PhieuLuong_${maNV}_${label}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
+      alert('Không tìm thấy tệp phiếu lương để tải.')
     } catch {
-      alert('Lỗi kết nối. Vui lòng thử lại.')
+      alert('Lỗi kết nối khi tải file. Vui lòng thử lại.')
     } finally {
       setDownloadingId(null)
     }
@@ -164,7 +216,7 @@ export default function DashboardClient({ payslips, maNV, tenNV, tenCongTy, fetc
                 {tenNV}
               </h1>
               <p className="text-xs text-gray-500 truncate">
-                Mã NV: <span className="font-medium text-gray-700">{maNV}</span>
+                Mã NV: <span className="font-medium text-gray-700">{formatMaNV(maNV)}</span>
                 {tenCongTy && <span className="ml-2 text-gray-400">· {tenCongTy}</span>}
               </p>
             </div>
@@ -273,7 +325,7 @@ function PayslipCard({
           </svg>
         </div>
         <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
-          PDF
+          {payslip.pdf_path ? 'PDF' : 'Điện tử'}
         </span>
       </div>
 

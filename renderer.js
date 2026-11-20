@@ -218,12 +218,18 @@ const previewColumns = [
   { key: "actions", label: "Hành động", kind: "actions" },
 ];
 
+function formatMaNV(code) {
+  if (!code) return "";
+  return String(code).trim().replace(/lsf/gi, "LSF");
+}
+
 function getPreviewValue(nv, column, sttHienThi) {
   if (column.kind === "index") return String(sttHienThi);
   if (column.kind === "actions") {
     return "";
   }
   const value = nv[column.key];
+  if (column.key === "maNV") return formatMaNV(value);
   if (column.kind === "money") return dinhDangTien(value);
   if (column.kind === "number") return dinhDangSo(value);
   return value !== undefined && value !== null ? String(value) : "";
@@ -1193,7 +1199,7 @@ function renderPdfEmployeeTable() {
     return `<tr>
       <td class="chk-col"><input type="checkbox" class="row-chk-pdf" data-index="${index}" ${isChecked ? "checked" : ""}></td>
       <td>${stt + 1}</td>
-      <td><span class="code-pill">${nv.maNV || "—"}</span></td>
+      <td><span class="code-pill">${formatMaNV(nv.maNV) || "—"}</span></td>
       <td><strong>${nv.hoTen || "—"}</strong></td>
       <td>${nv.boPhan || "—"}</td>
       <td style="text-align:right;font-weight:600;color:var(--text)">${dinhDangTien(nv.thucNhan)}</td>
@@ -1402,7 +1408,7 @@ function renderEmailHistoryTable() {
 
     return `<tr>
       <td class="chk-col"><input type="checkbox" class="row-chk-email" data-index="${index}" ${isChecked ? "checked" : ""}></td>
-      <td><span class="code-pill">${nv.maNV || "—"}</span></td>
+      <td><span class="code-pill">${formatMaNV(nv.maNV) || "—"}</span></td>
       <td><strong>${nv.hoTen || "—"}</strong></td>
       <td>${nv.boPhan || "—"}</td>
       <td>${nv.email || '<span class="muted">(chưa có email)</span>'}</td>
@@ -1617,7 +1623,7 @@ function renderPortalEmployeeTable() {
     return `<tr>
       <td class="chk-col"><input type="checkbox" class="row-chk-portal" data-index="${index}" ${isChecked ? "checked" : ""}></td>
       <td style="text-align:center;color:var(--text-muted)">${stt + 1}</td>
-      <td><span class="code-pill">${nv.maNV || "—"}</span></td>
+      <td><span class="code-pill">${formatMaNV(nv.maNV) || "—"}</span></td>
       <td><strong>${nv.hoTen || "—"}</strong></td>
       <td>${nv.boPhan || "—"}</td>
       <td><code class="code-pill">${portalAccount}</code></td>
@@ -3360,7 +3366,7 @@ function renderAccountsTable() {
   let html = "";
   filtered.forEach((acc, index) => {
     const isSelected = selectedAccountIds.has(acc.ma_nv);
-    const maNV = escapeHtml(acc.ma_nv);
+    const maNV = escapeHtml(formatMaNV(acc.ma_nv));
     const hoTen = escapeHtml(acc.ho_ten || acc.ma_nv);
     const boPhan = escapeHtml(acc.bo_phan || "-");
     const email = escapeHtml(acc.email);

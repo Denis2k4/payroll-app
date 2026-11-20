@@ -24,7 +24,8 @@ export default async function PayslipDetailPage({ params }: PageProps) {
     redirect('/')
   }
 
-  const maNV = user.email?.replace('@hehehr.internal', '') ?? ''
+  const rawMaNV = user.email?.replace('@hehehr.internal', '') ?? ''
+  const maNV = rawMaNV.replace(/lsf/gi, 'LSF')
 
   // Lấy thông tin phiếu lương
   const { data: payslip, error } = await supabase

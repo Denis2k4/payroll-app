@@ -10,6 +10,11 @@ interface PayslipHtmlViewerProps {
   tenCongTy?: string
 }
 
+export function formatMaNV(code?: string | null): string {
+  if (!code) return ''
+  return String(code).trim().replace(/lsf/gi, 'LSF')
+}
+
 export default function PayslipHtmlViewer({
   html,
   maNV,
@@ -123,11 +128,8 @@ export default function PayslipHtmlViewer({
               Phiếu lương {periodLabel}
             </h1>
             <p className="text-xs text-gray-500 truncate">
-              Mã NV: <span className="font-semibold text-gray-700">{maNV}</span>
+              Mã NV: <span className="font-semibold text-gray-700">{formatMaNV(maNV)}</span>
               {tenCongTy && <span className="hidden sm:inline"> · {tenCongTy}</span>}
-              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                ⚡ Tải tức thì
-              </span>
             </p>
           </div>
 
@@ -156,17 +158,17 @@ export default function PayslipHtmlViewer({
               </button>
             </div>
 
-            {/* Nút In / Lưu PDF */}
+            {/* Nút In phiếu lương */}
             <button
               type="button"
               onClick={handlePrint}
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm active:scale-95 transition-all"
-              title="In trực tiếp hoặc Lưu dưới dạng file PDF"
+              title="In phiếu lương"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
-              <span>In / Tải PDF</span>
+              <span>In phiếu lương</span>
             </button>
           </div>
         </div>
