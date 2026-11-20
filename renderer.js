@@ -2687,8 +2687,8 @@ function renderManageTable() {
 
     const actionButtons = `
       <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
-        <button type="button" class="table-btn-mini primary btn-xem-pdf-manage" data-path="${p.pdf_path || ""}" data-manv="${p.ma_nv}" title="Xem trước file PDF online">
-          👁️ Xem PDF
+        <button type="button" class="table-btn-mini primary btn-xem-manage" data-id="${p.id}" data-path="${p.pdf_path || ""}" data-manv="${p.ma_nv}" title="Xem phiếu lương online">
+          👁️ Xem
         </button>
         ${
           isRevoked
@@ -2887,28 +2887,50 @@ function wireManageEvents() {
       return;
     }
 
-    // Xem PDF online
-    const btnXem = target.closest(".btn-xem-pdf-manage");
+    // Xem phiếu lương online (hỗ trợ cả JSON/HTML tức thì và PDF cũ)
+    const btnXem = target.closest(".btn-xem-manage, .btn-xem-pdf-manage");
     if (btnXem) {
+      const id = btnXem.dataset.id;
       const path = btnXem.dataset.path;
-      if (!path) {
-        showToast("Phiếu này không có đường dẫn file PDF.", "warning");
+      const item = managePayslips.find((p) => p.id === id);
+
+      // 1. Nếu phiếu có dữ liệu JSON/HTML: Mở modal xem trực tiếp ngay trong app!
+      let payslipData = item?.data;
+      if (typeof payslipData === "string") {
+        try { payslipData = JSON.parse(payslipData); } catch {}
+      }
+      const htmlContent = payslipData?.html || (typeof payslipData === "string" && payslipData.includes("<") ? payslipData : null);
+
+      if (htmlContent) {
+        moModalXemPhieuOnline({
+          html: htmlContent,
+          maNV: item?.ma_nv || btnXem.dataset.manv || "",
+          hoTen: item?.ho_ten || "",
+          thangNam: item?.thang_nam || "",
+        });
         return;
       }
-      const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
-      try {
-        btnXem.disabled = true;
-        const res = await window.api.laySignedUrlPhieuLuong({ supabaseUrl, serviceRoleKey, pdfPath: path });
-        if (res && res.ok && res.signedUrl) {
-          await window.api.moLinkNgoai(res.signedUrl);
-        } else {
-          showToast(`Không lấy được liên kết PDF: ${(res && res.error) || "Lỗi không xác định"}`, "error");
+
+      // 2. Nếu phiếu có đường dẫn file PDF trong Storage: Lấy signed URL và mở link ngoài
+      if (path) {
+        const { supabaseUrl, serviceRoleKey } = layThongTinSupabase();
+        try {
+          btnXem.disabled = true;
+          const res = await window.api.laySignedUrlPhieuLuong({ supabaseUrl, serviceRoleKey, pdfPath: path });
+          if (res && res.ok && res.signedUrl) {
+            await window.api.moLinkNgoai(res.signedUrl);
+          } else {
+            showToast(`Không lấy được liên kết PDF: ${(res && res.error) || "Lỗi không xác định"}`, "error");
+          }
+        } catch (err) {
+          showToast(`Lỗi: ${err.message || err}`, "error");
+        } finally {
+          btnXem.disabled = false;
         }
-      } catch (err) {
-        showToast(`Lỗi: ${err.message || err}`, "error");
-      } finally {
-        btnXem.disabled = false;
+        return;
       }
+
+      showToast("Phiếu lương này chưa có dữ liệu hiển thị trên Supabase.", "warning");
       return;
     }
 
@@ -3149,6 +3171,68 @@ function wireManageEvents() {
   // Nút mở quản lý từ Home
   $("btnHomeGoManage")?.addEventListener("click", () => {
     switchTab("manage");
+  });
+
+  // Modal Xem trước Phiếu lương Online
+  function moModalXemPhieuOnline({ html, maNV, hoTen, thangNam }) {
+    const modal = $("modalXemPhieuOnline");
+    const titleEl = $("modalXemPhieuOnlineTitle");
+    const subEl = $("modalXemPhieuOnlineSub");
+    const iframe = $("iframeXemPhieuOnline");
+    if (!modal || !iframe) return;
+
+    if (titleEl) titleEl.textContent = `Phiếu lương ${thangNam ? "Tháng " + thangNam : ""}`;
+    if (subEl) subEl.textContent = `Mã NV: ${formatMaNV(maNV)}${hoTen ? " · " + hoTen : ""}`;
+
+    const styledHtml = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #ffffff;
+      display: flex;
+      justify-content: center;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .wrapper {
+      width: 100%;
+      max-width: 820px;
+    }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .wrapper { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">${html}</div>
+</body>
+</html>`;
+
+    iframe.srcdoc = styledHtml;
+    modal.hidden = false;
+    modal.style.display = "flex";
+  }
+
+  function dongModalXemPhieuOnline() {
+    const modal = $("modalXemPhieuOnline");
+    if (!modal) return;
+    modal.hidden = true;
+    modal.style.display = "none";
+    const iframe = $("iframeXemPhieuOnline");
+    if (iframe) iframe.srcdoc = "";
+  }
+
+  $("btnDongModalXemPhieuOnline")?.addEventListener("click", dongModalXemPhieuOnline);
+  $("btnInPhieuOnlineModal")?.addEventListener("click", () => {
+    const iframe = $("iframeXemPhieuOnline");
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }
   });
 }
 

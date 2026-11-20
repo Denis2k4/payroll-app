@@ -51,8 +51,18 @@ export default async function PayslipDetailPage({ params }: PageProps) {
   const periodLabel = monthLabel ? `${monthLabel} ${payslip.year}` : (payslip.thang_nam || '')
 
   // 1. NẾU LÀ PHIẾU LƯƠNG DẠNG JSON: Hiển thị giao diện HTML siêu tốc không cần tải file PDF
-  const payslipData = payslip.data
-  const htmlContent = payslipData?.html || (typeof payslipData === 'string' && payslipData.includes('<') ? payslipData : null)
+  let payslipData = payslip.data
+  if (typeof payslipData === 'string') {
+    try {
+      payslipData = JSON.parse(payslipData)
+    } catch {
+      // nếu là chuỗi HTML trực tiếp
+    }
+  }
+
+  const htmlContent =
+    payslipData?.html ||
+    (typeof payslipData === 'string' && payslipData.includes('<') ? payslipData : null)
 
   if (htmlContent) {
     return (
@@ -67,6 +77,28 @@ export default async function PayslipDetailPage({ params }: PageProps) {
 
   // 2. NẾU LÀ PHIẾU LƯƠNG CŨ (PDF STORAGE): Tạo signed URL để xem qua PDF.js
   const rawPath = payslip.pdf_path || payslip.file_path || ''
+  if (!rawPath) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3 text-xl">
+            ⚠️
+          </div>
+          <p className="text-gray-800 font-bold text-base mb-1">Phiếu lương chưa có dữ liệu</p>
+          <p className="text-xs text-gray-500 mb-6 leading-relaxed">
+            Phiếu lương này hiện chưa có nội dung hiển thị trên hệ thống. Vui lòng liên hệ phòng nhân sự / kế toán để đồng bộ lại phiếu lương.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-block px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all"
+          >
+            ← Trở về danh sách phiếu lương
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   const cleanPath = rawPath.replace(/^payslips\//, '')
   const { data: signedData, error: signedError } = await supabase.storage
     .from('payslips')

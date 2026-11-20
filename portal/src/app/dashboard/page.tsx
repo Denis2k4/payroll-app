@@ -84,12 +84,22 @@ export default async function DashboardPage() {
   let fetchError: string | null = null
 
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('payslips')
       .select('*')
       .ilike('ma_nv', actualMaNV)
       .or('status.eq.active,status.is.null')
       .order('uploaded_at', { ascending: false })
+
+    if (error && (error.message?.includes('status') || error.code === '42703')) {
+      const retry = await supabase
+        .from('payslips')
+        .select('*')
+        .ilike('ma_nv', actualMaNV)
+        .order('uploaded_at', { ascending: false })
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) {
       console.error('Lỗi lấy phiếu lương:', error)
