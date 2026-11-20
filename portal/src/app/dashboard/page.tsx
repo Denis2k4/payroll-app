@@ -6,6 +6,53 @@ import { redirect } from 'next/navigation'
 import type { Payslip } from '../../lib/types'
 import DashboardClient from './DashboardClient'
 
+// Helper tính điểm sắp xếp theo năm và tháng: YYYYMM (ví dụ 06/2026 -> 202606)
+function getPayslipSortScore(p: Payslip): number {
+  if (p.year && p.month) {
+    return Number(p.year) * 100 + Number(p.month)
+  }
+
+  const str = String(p.thang_nam || '').trim()
+  if (str) {
+    // MM/YYYY hoặc M/YYYY (ví dụ: 06/2026, 6/2026, Tháng 06/2026, 06-2026)
+    const m1 = str.match(/(\d{1,2})\s*[/._-]\s*(\d{4})/)
+    if (m1) {
+      const month = parseInt(m1[1], 10)
+      const year = parseInt(m1[2], 10)
+      if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+        return year * 100 + month
+      }
+    }
+
+    // YYYY/MM hoặc YYYY-MM
+    const m2 = str.match(/(\d{4})\s*[/._-]\s*(\d{1,2})/)
+    if (m2) {
+      const year = parseInt(m2[1], 10)
+      const month = parseInt(m2[2], 10)
+      if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+        return year * 100 + month
+      }
+    }
+
+    // Dạng "Tháng 6 năm 2026"
+    const m3 = str.match(/(?:tháng\s*)?(\d{1,2})\D+(\d{4})/i)
+    if (m3) {
+      const month = parseInt(m3[1], 10)
+      const year = parseInt(m3[2], 10)
+      if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+        return year * 100 + month
+      }
+    }
+  }
+
+  if (p.uploaded_at) {
+    const time = new Date(p.uploaded_at).getTime()
+    if (!isNaN(time)) return time
+  }
+
+  return 0
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
 
@@ -48,7 +95,14 @@ export default async function DashboardPage() {
       console.error('Lỗi lấy phiếu lương:', error)
       fetchError = 'Không thể tải danh sách phiếu lương. Vui lòng thử lại.'
     } else {
-      payslips = data ?? []
+      payslips = (data ?? []).sort((a, b) => {
+        const scoreA = getPayslipSortScore(a)
+        const scoreB = getPayslipSortScore(b)
+        if (scoreB !== scoreA) return scoreB - scoreA
+        const timeA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0
+        const timeB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0
+        return timeB - timeA
+      })
     }
   } catch {
     fetchError = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối và thử lại.'

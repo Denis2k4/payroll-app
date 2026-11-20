@@ -13,6 +13,64 @@ const MONTHS_VI = [
   'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
 ]
 
+// Helper tính điểm sắp xếp theo năm và tháng: YYYYMM (ví dụ 06/2026 -> 202606)
+function getPayslipSortScore(p: Payslip): number {
+  if (p.year && p.month) {
+    return Number(p.year) * 100 + Number(p.month)
+  }
+
+  const str = String(p.thang_nam || '').trim()
+  if (str) {
+    // MM/YYYY hoặc M/YYYY (ví dụ: 06/2026, 6/2026, Tháng 06/2026, 06-2026)
+    const m1 = str.match(/(\d{1,2})\s*[/._-]\s*(\d{4})/)
+    if (m1) {
+      const month = parseInt(m1[1], 10)
+      const year = parseInt(m1[2], 10)
+      if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+        return year * 100 + month
+      }
+    }
+
+    // YYYY/MM hoặc YYYY-MM
+    const m2 = str.match(/(\d{4})\s*[/._-]\s*(\d{1,2})/)
+    if (m2) {
+      const year = parseInt(m2[1], 10)
+      const month = parseInt(m2[2], 10)
+      if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+        return year * 100 + month
+      }
+    }
+
+    // Dạng "Tháng 6 năm 2026"
+    const m3 = str.match(/(?:tháng\s*)?(\d{1,2})\D+(\d{4})/i)
+    if (m3) {
+      const month = parseInt(m3[1], 10)
+      const year = parseInt(m3[2], 10)
+      if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+        return year * 100 + month
+      }
+    }
+  }
+
+  if (p.uploaded_at) {
+    const time = new Date(p.uploaded_at).getTime()
+    if (!isNaN(time)) return time
+  }
+
+  return 0
+}
+
+function formatThangNamLabel(payslip: Payslip): string {
+  if (payslip.thang_nam) {
+    const tn = payslip.thang_nam.trim()
+    return tn.toLowerCase().startsWith('tháng') ? tn : `Tháng ${tn}`
+  }
+  if (payslip.month && payslip.year) {
+    return `${MONTHS_VI[payslip.month] || `Tháng ${payslip.month}`} ${payslip.year}`
+  }
+  return 'Phiếu lương'
+}
+
 interface Props {
   payslips: Payslip[]
   maNV: string
@@ -25,6 +83,16 @@ export default function DashboardClient({ payslips, maNV, tenNV, tenCongTy, fetc
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+
+  // Sắp xếp phiếu lương theo tháng và năm: tháng mới nhất ở trên cùng
+  const sortedPayslips = [...payslips].sort((a, b) => {
+    const scoreA = getPayslipSortScore(a)
+    const scoreB = getPayslipSortScore(b)
+    if (scoreB !== scoreA) return scoreB - scoreA
+    const timeA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0
+    const timeB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0
+    return timeB - timeA
+  })
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -156,9 +224,9 @@ export default function DashboardClient({ payslips, maNV, tenNV, tenCongTy, fetc
         )}
 
         {/* Grid phiếu lương */}
-        {payslips.length > 0 && (
+        {sortedPayslips.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {payslips.map((payslip) => (
+            {sortedPayslips.map((payslip) => (
               <PayslipCard
                 key={payslip.id}
                 payslip={payslip}
@@ -201,7 +269,7 @@ function PayslipCard({
 
       {/* Thông tin */}
       <h3 className="font-bold text-gray-900 text-lg">
-        {payslip.thang_nam ? `Tháng ${payslip.thang_nam}` : (payslip.month ? `${MONTHS_VI[payslip.month]} ${payslip.year}` : 'Phiếu lương')}
+        {formatThangNamLabel(payslip)}
       </h3>
       <p className="text-sm text-gray-500 mt-0.5">
         {payslip.ten_cong_ty || payslip.company_name || 'HeheHR'}

@@ -81,7 +81,7 @@ export default function LoginPage() {
 
         {/* Form card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Đăng nhập</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">Đăng nhập</h2>
 
           {/* Thông báo lỗi */}
           {error && (
